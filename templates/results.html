@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Results</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        @media print {
+
+            header,
+            .no-print {
+                display: none;
+            }
+
+            body {
+                background: white;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="no-print">
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="d-flex justify-between align-center mb-4">
+                <div>
+                    <h1 id="race-name">Race Results</h1>
+                    <p class="text-muted" id="race-info"></p>
+                </div>
+                <div class="no-print">
+                    <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
+                    <button class="btn btn-success" onclick="exportCSV()">📊 Export CSV</button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card no-print mb-4">
+                <div class="card-body">
+                    <div class="grid grid-3">
+                        <div class="form-group">
+                            <label class="form-label">Filter by Status</label>
+                            <select id="filter-status" class="form-select" onchange="applyFilters()">
+                                <option value="">All</option>
+                                <option value="finished">Finished</option>
+                                <option value="dnf">DNF</option>
+                                <option value="dns">DNS</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Filter by Gender</label>
+                            <select id="filter-gender" class="form-select" onchange="applyFilters()">
+                                <option value="">All</option>
+                                <option value="M">Male</option>
+                                <option value="F">Female</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Filter by Age Group</label>
+                            <select id="filter-age-group" class="form-select" onchange="applyFilters()">
+                                <option value="">All</option>
+                                <option value="Under 20">Under 20</option>
+                                <option value="20-29">20-29</option>
+                                <option value="30-39">30-39</option>
+                                <option value="40-49">40-49</option>
+                                <option value="50-59">50-59</option>
+                                <option value="60+">60+</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Search</label>
+                            <input type="text" id="search" class="form-control" placeholder="Search by name or bib..."
+                                oninput="applyFilters()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="card">
+                <div class="card-header">Overall Results</div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Overall Rank</th>
+                                <th>Bib</th>
+                                <th>Name</th>
+                                <th>Gender</th>
+                                <th>Age</th>
+                                <th>Age Group</th>
+                                <th>Category</th>
+                                <th>Cat. Rank</th>
+                                <th>Status</th>
+                                <th>Total Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table">
+                            <tr>
+                                <td colspan="10" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="no-print">
+        <div class="container">
+            <p>&copy; 2024 Race Timing System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Access all functions directly from window.RaceTimingApp to avoid duplicate declarations
+        const raceId = {{ race_id }};
+        let allResults = [];
+        let currentRace = null;
+
+        async function loadRaceInfo() {
+            try {
+                currentRace = await window.RaceTimingApp.API.getRace(raceId);
+                const race = currentRace;
+                document.getElementById('race-name').textContent = `${race.name} - Results`;
+                document.getElementById('race-info').textContent =
+                    `${window.RaceTimingApp.getRaceTypeIcon(race.race_type)} ${race.race_type.toUpperCase()} • ${window.RaceTimingApp.formatDate(race.date)} • ${race.location || ''}`;
+            } catch (error) {
+                console.error('Error loading race info:', error);
+            }
+        }
+
+        async function loadResults() {
+            try {
+                allResults = await window.RaceTimingApp.API.getResults(raceId);
+                displayResults(allResults);
+            } catch (error) {
+                console.error('Error loading results:', error);
+            }
+        }
+
+        function displayResults(results) {
+            const tbody = document.getElementById('results-table');
+            tbody.innerHTML = '';
+
+            if (results.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No results available</td></tr>';
+                return;
+            }
+
+            results.forEach(r => {
+                const ageGroup = window.RaceTimingApp.getAgeGroup(r.participant.age, r.participant.gender, currentRace?.age_groups);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${r.rank || '-'}</strong></td>
+                    <td><strong>#${r.bib_number}</strong></td>
+                    <td>${r.participant.name}</td>
+                    <td>${r.participant.gender || '-'}</td>
+                    <td>${r.participant.age || '-'}</td>
+                    <td><span class="badge badge-info">${ageGroup}</span></td>
+                    <td>${r.category}</td>
+                    <td>${r.category_rank || '-'}</td>
+                    <td>${window.RaceTimingApp.getStatusBadge(r.status)}</td>
+                    <td><strong>${window.RaceTimingApp.formatTime(r.total_time)}</strong></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function applyFilters() {
+            const statusFilter = document.getElementById('filter-status').value;
+            const genderFilter = document.getElementById('filter-gender').value;
+            const ageGroupFilter = document.getElementById('filter-age-group').value;
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+
+            let filtered = allResults;
+
+            if (statusFilter) {
+                filtered = filtered.filter(r => r.status === statusFilter);
+            }
+
+            if (genderFilter) {
+                filtered = filtered.filter(r => r.participant.gender === genderFilter);
+            }
+
+            if (ageGroupFilter) {
+                filtered = filtered.filter(r => {
+                    const ageGroup = window.RaceTimingApp.getAgeGroup(r.participant.age, r.participant.gender, currentRace?.age_groups);
+                    return ageGroup.includes(ageGroupFilter);
+                });
+            }
+
+            if (searchTerm) {
+                filtered = filtered.filter(r =>
+                    r.participant.name.toLowerCase().includes(searchTerm) ||
+                    r.bib_number.toString().includes(searchTerm)
+                );
+            }
+
+            displayResults(filtered);
+        }
+
+        function exportCSV() {
+            const headers = ['Rank', 'Bib', 'Name', 'Gender', 'Age', 'Category', 'Cat. Rank', 'Status', 'Total Time'];
+            const rows = allResults.map(r => [
+                r.rank || '',
+                r.bib_number,
+                r.participant.name,
+                r.participant.gender || '',
+                r.participant.age || '',
+                r.category,
+                r.category_rank || '',
+                r.status,
+                window.RaceTimingApp.formatTime(r.total_time)
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `race_${raceId}_results.csv`;
+            a.click();
+        }
+
+        loadRaceInfo();
+        loadResults();
+    </script>
+</body>
+
+</html>

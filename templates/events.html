@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Management</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link active">Events</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <div class="breadcrumb-item">
+                    <a href="/">🏠 Dashboard</a>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item active">
+                    Events
+                </div>
+            </nav>
+
+            <div class="d-flex justify-between align-center mb-4">
+                <h1>Event Management</h1>
+                <button class="btn btn-primary" onclick="showCreateForm()">+ Create New Event</button>
+            </div>
+
+            <!-- Create Event Form -->
+            <div id="create-form" class="card" style="display: none;">
+                <div class="card-header">Create New Event</div>
+                <div class="card-body">
+                    <form id="event-form" onsubmit="createEvent(event)">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Event Name *</label>
+                                <input type="text" class="form-control" name="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Date *</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-control" name="location">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Create Event</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideCreateForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Events List -->
+            <div class="card">
+                <div class="card-header">All Events</div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Date</th>
+                                <th>Location</th>
+                                <th>Races</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-table">
+                            <tr>
+                                <td colspan="5" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        function showCreateForm() {
+            document.getElementById('create-form').style.display = 'block';
+        }
+
+        function hideCreateForm() {
+            document.getElementById('create-form').style.display = 'none';
+            document.getElementById('event-form').reset();
+        }
+
+        async function createEvent(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData);
+
+            try {
+                await window.RaceTimingApp.API.createEvent(data);
+                window.RaceTimingApp.showAlert('Event created successfully!', 'success');
+                hideCreateForm();
+                loadEvents();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error creating event: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteEvent(id, name) {
+            if (!confirm(`Are you sure you want to delete "${name}"? This will also delete all races within this event.`)) return;
+
+            try {
+                await window.RaceTimingApp.API.deleteEvent(id);
+                window.RaceTimingApp.showAlert('Event deleted successfully', 'success');
+                loadEvents();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting event: ' + error.message, 'danger');
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const events = await window.RaceTimingApp.API.getEvents();
+                const tbody = document.getElementById('events-table');
+                tbody.innerHTML = '';
+
+                if (events.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No events found. Create your first event!</td></tr>';
+                    return;
+                }
+
+                events.forEach(event => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong><a href="/event/${event.id}">${event.name}</a></strong></td>
+                        <td>${window.RaceTimingApp.formatDate(event.date)}</td>
+                        <td>${event.location || '-'}</td>
+                        <td><span class="badge badge-primary">${event.race_count}</span></td>
+                        <td>
+                            <a href="/event/${event.id}/control" class="btn btn-sm btn-success">🎮 Control</a>
+                            <a href="/event/${event.id}" class="btn btn-sm btn-info">Details</a>
+                            <button onclick="deleteEvent(${event.id}, '${event.name.replace(/'/g, "\\'")}')" class="btn btn-sm btn-danger">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading events:', error);
+            }
+        }
+
+        loadEvents();
+    </script>
+</body>
+
+</html>

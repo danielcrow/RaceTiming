@@ -1,0 +1,62 @@
+/* Premium dark‑mode, glass‑morphism style */
+:root {
+    --bg: #0d0d0d;
+    --card-bg: rgba(255, 255, 255, 0.08);
+    --text: #e0e0e0;
+    --accent: hsl(210, 80%, 55%);
+    --font: 'Inter', sans-serif;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+}
+
+.dark {
+    background: var(--bg);
+}
+
+.hero {
+    text-align: center;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, #111, #222);
+}
+
+.container {
+    max-width: 960px;
+    margin: auto;
+    padding: 1rem;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    backdrop-filter: blur(8px);
+    background: var(--card-bg);
+}
+
+.table th,
+.table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.table tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+button:hover {
+    background: hsl(210, 80%, 45%);
+}

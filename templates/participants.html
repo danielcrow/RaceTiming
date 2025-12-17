@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Participant Management</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link active">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <div class="breadcrumb-item">
+                    <a href="/">🏠 Dashboard</a>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item active">
+                    Participants
+                </div>
+            </nav>
+
+            <div class="d-flex justify-between align-center mb-4">
+                <h1>Participant Management</h1>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success" onclick="showImportModal()">📥 Import from Excel</button>
+                    <button class="btn btn-primary" onclick="showCreateForm()">+ Add Participant</button>
+                </div>
+            </div>
+
+            <!-- Create Participant Form -->
+            <div id="create-form" class="card" style="display: none;">
+                <div class="card-header">Add New Participant</div>
+                <div class="card-body">
+                    <form id="participant-form" onsubmit="createParticipant(event)">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">First Name *</label>
+                                <input type="text" class="form-control" name="first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Last Name *</label>
+                                <input type="text" class="form-control" name="last_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" class="form-control" name="phone">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Gender</label>
+                                <select class="form-select" name="gender">
+                                    <option value="">Select...</option>
+                                    <option value="M">Male</option>
+                                    <option value="F">Female</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Age</label>
+                                <input type="number" class="form-control" name="age" min="1" max="120">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">RFID Tag</label>
+                                <input type="text" class="form-control" name="rfid_tag" placeholder="E200...">
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Add Participant</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideCreateForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Participants List -->
+            <div class="card">
+                <div class="card-header">All Participants</div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Gender</th>
+                                <th>Age</th>
+                                <th>Age Group</th>
+                                <th>RFID Tag</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="participants-table">
+                            <tr>
+                                <td colspan="8" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Edit Participant Modal -->
+    <div id="edit-modal" class="modal" style="display: none;">
+        <div class="modal-content card" style="max-width: 600px; margin: 2rem auto;">
+            <div class="card-header">Edit Participant</div>
+            <div class="card-body">
+                <form id="edit-form" onsubmit="updateParticipant(event)">
+                    <input type="hidden" id="edit-participant-id">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" class="form-control" id="edit-first-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" class="form-control" id="edit-last-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="edit-email">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="edit-phone">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Gender</label>
+                            <select class="form-select" id="edit-gender">
+                                <option value="">Select...</option>
+                                <option value="M">Male</option>
+                                <option value="F">Female</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Age</label>
+                            <input type="number" class="form-control" id="edit-age" min="1" max="120">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">RFID Tag</label>
+                            <input type="text" class="form-control" id="edit-rfid-tag" placeholder="E200...">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideEditModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="register-modal" class="modal" style="display: none;">
+        <div class="modal-content card" style="max-width: 600px; margin: 2rem auto;">
+            <div class="card-header">Register Participant for Race</div>
+            <div class="card-body">
+                <form id="register-form" onsubmit="registerParticipant(event)">
+                    <input type="hidden" id="register-participant-id">
+                    <div class="form-group">
+                        <label class="form-label">Participant</label>
+                        <input type="text" class="form-control" id="register-participant-name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Select Race *</label>
+                        <div id="race-select-container"></div>
+                        <input type="hidden" id="register-race-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bib Number *</label>
+                        <input type="text" class="form-control" id="register-bib" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <input type="text" class="form-control" id="register-category" placeholder="e.g. Open, Elite">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Register</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideRegisterModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="import-modal" class="modal" style="display: none;">
+        <div class="modal-content card" style="max-width: 700px; margin: 2rem auto;">
+            <div class="card-header">Import Participants from Excel</div>
+            <div class="card-body">
+                <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+                    <strong>📋 Flexible Header Mapping</strong><br>
+                    The system automatically recognizes various column names:<br>
+                    <small>
+                        • <strong>Name:</strong> First Name, First, Forename | Last Name, Surname, Last<br>
+                        • <strong>Contact:</strong> Email, E-mail | Phone, Mobile, Cell<br>
+                        • <strong>Details:</strong> Gender, Sex, M/F | Age, Years | DOB, Birth Date<br>
+                        • <strong>Race:</strong> Bib, Number, Race Number | Category, Age Group, Division<br>
+                        • <strong>RFID:</strong> RFID Tag, Tag, Chip, EPC
+                    </small>
+                </div>
+
+                <div class="alert alert-success" style="margin-bottom: 1.5rem;">
+                    <strong>✨ Auto-Features:</strong><br>
+                    • Bib numbers auto-assigned if not in file (when race selected)<br>
+                    • Age calculated from Date of Birth if provided<br>
+                    • Existing participants updated by email or RFID tag
+                </div>
+
+                <form id="import-form" onsubmit="importParticipants(event)">
+                    <div class="form-group">
+                        <label class="form-label">Excel File *</label>
+                        <input type="file" id="import-file" class="form-control" accept=".xlsx,.xls" required>
+                        <small class="text-muted">Supported formats: .xlsx, .xls</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Register for Race (Optional)</label>
+                        <div id="import-race-select-container"></div>
+                        <input type="hidden" id="import-race-id">
+                        <small class="text-muted">If selected, participants with bib numbers will be automatically
+                            registered</small>
+                    </div>
+
+                    <div id="import-progress" style="display: none; margin: 1rem 0;">
+                        <div class="spinner"></div>
+                        <p>Importing participants...</p>
+                    </div>
+
+                    <div id="import-results" style="display: none; margin: 1rem 0;"></div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success" id="import-submit-btn">Import</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideImportModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 2rem 0;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+    </style>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Access all functions directly from window.RaceTimingApp to avoid duplicate declarations
+
+        function showCreateForm() {
+            document.getElementById('create-form').style.display = 'block';
+        }
+
+        function hideCreateForm() {
+            document.getElementById('create-form').style.display = 'none';
+            document.getElementById('participant-form').reset();
+        }
+
+        async function createParticipant(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {};
+
+            for (let [key, value] of formData.entries()) {
+                if (value) data[key] = value;
+            }
+
+            try {
+                const result = await window.RaceTimingApp.API.createParticipant(data);
+                window.RaceTimingApp.showAlert('Participant added successfully!', 'success');
+                hideCreateForm();
+                loadParticipants();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error adding participant: ' + error.message, 'danger');
+            }
+        }
+
+        let allParticipants = [];
+
+        async function loadParticipants() {
+            try {
+                allParticipants = await window.RaceTimingApp.API.getParticipants();
+                const tbody = document.getElementById('participants-table');
+                tbody.innerHTML = '';
+
+                if (allParticipants.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No participants found. Add your first participant!</td></tr>';
+                    return;
+                }
+
+                allParticipants.forEach(p => {
+                    const ageGroup = window.RaceTimingApp.getAgeGroup(p.age, p.gender);
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${p.id}</td>
+                        <td><strong>${p.full_name}</strong></td>
+                        <td>${p.email || '-'}</td>
+                        <td>${p.gender || '-'}</td>
+                        <td>${p.age || '-'}</td>
+                        <td><span class="badge badge-info">${ageGroup}</span></td>
+                        <td><code>${p.rfid_tag || '-'}</code></td>
+                        <td>
+                            <button onclick="openRegisterModal(${p.id}, '${p.full_name.replace(/'/g, "\\'")}')" class="btn btn-sm btn-success">Register</button>
+                            <button onclick="openEditModal(${p.id})" class="btn btn-sm btn-primary">Edit</button>
+                            <button onclick="deleteParticipant(${p.id}, '${p.full_name.replace(/'/g, "\\'")}')" class="btn btn-sm btn-danger">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading participants:', error);
+            }
+        }
+
+        function openEditModal(id) {
+            const participant = allParticipants.find(p => p.id === id);
+            if (!participant) return;
+
+            document.getElementById('edit-participant-id').value = participant.id;
+            document.getElementById('edit-first-name').value = participant.first_name || '';
+            document.getElementById('edit-last-name').value = participant.last_name || '';
+            document.getElementById('edit-email').value = participant.email || '';
+            document.getElementById('edit-phone').value = participant.phone || '';
+            document.getElementById('edit-gender').value = participant.gender || '';
+            document.getElementById('edit-age').value = participant.age || '';
+            document.getElementById('edit-rfid-tag').value = participant.rfid_tag || '';
+            document.getElementById('edit-modal').style.display = 'block';
+        }
+
+        function hideEditModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+            document.getElementById('edit-form').reset();
+        }
+
+        async function updateParticipant(event) {
+            event.preventDefault();
+            const participantId = document.getElementById('edit-participant-id').value;
+
+            const data = {
+                first_name: document.getElementById('edit-first-name').value,
+                last_name: document.getElementById('edit-last-name').value,
+                email: document.getElementById('edit-email').value || null,
+                phone: document.getElementById('edit-phone').value || null,
+                gender: document.getElementById('edit-gender').value || null,
+                age: document.getElementById('edit-age').value ? parseInt(document.getElementById('edit-age').value) : null,
+                rfid_tag: document.getElementById('edit-rfid-tag').value || null
+            };
+
+            try {
+                await window.RaceTimingApp.API.updateParticipant(participantId, data);
+                window.RaceTimingApp.showAlert('Participant updated successfully!', 'success');
+                hideEditModal();
+                loadParticipants();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error updating participant: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteParticipant(id, name) {
+            if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+            try {
+                // API delete method not implemented in app.js yet? 
+                // Checking app.js... it seems deleteParticipant is not there?
+                // Wait, deleteRace is there. deleteParticipant?
+                // I need to check app.js. Assuming it is or I'll add it.
+                // Actually, I see deleteParticipant in the previous code snippet of participants.html?
+                // No, I don't see it in the snippet.
+                // I'll assume it's not there and I should implement it or use fetch directly.
+                // But for now let's focus on registration.
+                // I'll add delete logic here just in case.
+                const response = await fetch(`/api/participants/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    window.RaceTimingApp.showAlert('Participant deleted', 'success');
+                    loadParticipants();
+                } else {
+                    throw new Error('Failed to delete');
+                }
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting: ' + error.message, 'danger');
+            }
+        }
+
+        // Registration Logic
+        let raceSelect;
+
+        async function initRaceSelect() {
+            try {
+                const races = await window.RaceTimingApp.API.getRaces();
+                const options = races.map(r => ({
+                    value: r.id,
+                    label: `${r.name} (${window.RaceTimingApp.formatDate(r.date)})`
+                }));
+
+                raceSelect = new window.SearchableSelect('race-select-container', options, (val) => {
+                    document.getElementById('register-race-id').value = val || '';
+                });
+            } catch (error) {
+                console.error('Error initializing race select:', error);
+            }
+        }
+
+        function openRegisterModal(participantId, name) {
+            document.getElementById('register-modal').style.display = 'block';
+            document.getElementById('register-participant-id').value = participantId;
+            document.getElementById('register-participant-name').value = name;
+            document.getElementById('register-bib').value = '';
+            document.getElementById('register-category').value = 'Open';
+            document.getElementById('register-race-id').value = '';
+
+            if (!raceSelect) {
+                initRaceSelect();
+            } else {
+                raceSelect.clear();
+            }
+        }
+
+        function hideRegisterModal() {
+            document.getElementById('register-modal').style.display = 'none';
+        }
+
+        async function registerParticipant(event) {
+            event.preventDefault();
+            const participantId = document.getElementById('register-participant-id').value;
+            const raceId = document.getElementById('register-race-id').value;
+            const bibNumber = document.getElementById('register-bib').value;
+            const category = document.getElementById('register-category').value;
+
+            if (!raceId) {
+                window.RaceTimingApp.showAlert('Please select a race', 'danger');
+                return;
+            }
+
+            try {
+                await window.RaceTimingApp.API.registerParticipant(participantId, {
+                    race_id: parseInt(raceId),
+                    bib_number: bibNumber,
+                    category: category
+                });
+                window.RaceTimingApp.showAlert('Participant registered successfully!', 'success');
+                hideRegisterModal();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error registering participant: ' + error.message, 'danger');
+            }
+        }
+
+        async function showRegisterModal(participantId, name) {
+            const raceId = prompt(`Register ${name} for race ID:`);
+            if (!raceId) return;
+
+            const bibNumber = prompt('Bib number:');
+            if (!bibNumber) return;
+
+            const category = prompt('Category (e.g., "Male 30-39"):', 'Open');
+
+            try {
+                await window.RaceTimingApp.API.registerParticipant(participantId, {
+                    race_id: parseInt(raceId),
+                    bib_number: parseInt(bibNumber),
+                    category: category
+                });
+                window.RaceTimingApp.showAlert('Participant registered successfully!', 'success');
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error registering participant: ' + error.message, 'danger');
+            }
+        }
+
+        // Import Logic
+        let importRaceSelect;
+
+        function showImportModal() {
+            document.getElementById('import-modal').style.display = 'block';
+            document.getElementById('import-results').style.display = 'none';
+            document.getElementById('import-file').value = '';
+            document.getElementById('import-race-id').value = '';
+
+            if (!importRaceSelect) {
+                initImportRaceSelect();
+            } else {
+                importRaceSelect.clear();
+            }
+        }
+
+        function hideImportModal() {
+            document.getElementById('import-modal').style.display = 'none';
+            document.getElementById('import-form').reset();
+        }
+
+        async function initImportRaceSelect() {
+            try {
+                const races = await window.RaceTimingApp.API.getRaces();
+                const options = races.map(r => ({
+                    value: r.id,
+                    label: `${r.name} (${window.RaceTimingApp.formatDate(r.date)})`
+                }));
+
+                importRaceSelect = new window.SearchableSelect('import-race-select-container', options, (val) => {
+                    document.getElementById('import-race-id').value = val || '';
+                });
+            } catch (error) {
+                console.error('Error initializing race select:', error);
+            }
+        }
+
+        async function importParticipants(event) {
+            event.preventDefault();
+
+            const fileInput = document.getElementById('import-file');
+            const raceId = document.getElementById('import-race-id').value;
+
+            if (!fileInput.files || !fileInput.files[0]) {
+                window.RaceTimingApp.showAlert('Please select a file', 'danger');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            if (raceId) {
+                formData.append('race_id', raceId);
+            }
+
+            // Show progress
+            document.getElementById('import-progress').style.display = 'block';
+            document.getElementById('import-submit-btn').disabled = true;
+            document.getElementById('import-results').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/participants/import', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                // Hide progress
+                document.getElementById('import-progress').style.display = 'none';
+                document.getElementById('import-submit-btn').disabled = false;
+
+                // Show results
+                const resultsDiv = document.getElementById('import-results');
+                resultsDiv.style.display = 'block';
+
+                if (result.success || response.ok) {
+                    let message = `<div class="alert alert-success">
+                        <strong>✅ Import Successful!</strong><br>
+                        • Imported: ${result.imported} new participants<br>
+                        • Updated: ${result.updated} existing participants<br>
+                        • Total rows processed: ${result.total_rows}
+                    </div>`;
+
+                    if (result.errors && result.errors.length > 0) {
+                        message += `<div class="alert alert-warning">
+                            <strong>⚠️ Warnings:</strong><br>
+                            ${result.errors.slice(0, 5).join('<br>')}
+                            ${result.errors.length > 5 ? `<br>... and ${result.errors.length - 5} more` : ''}
+                        </div>`;
+                    }
+
+                    resultsDiv.innerHTML = message;
+                    window.RaceTimingApp.showAlert('Import completed!', 'success');
+                    loadParticipants();
+
+                    // Auto-close after 3 seconds if no errors
+                    if (!result.errors || result.errors.length === 0) {
+                        setTimeout(() => {
+                            hideImportModal();
+                        }, 3000);
+                    }
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">
+                        <strong>❌ Import Failed</strong><br>
+                        ${result.error || 'Unknown error occurred'}
+                    </div>`;
+                    window.RaceTimingApp.showAlert('Import failed: ' + (result.error || 'Unknown error'), 'danger');
+                }
+            } catch (error) {
+                document.getElementById('import-progress').style.display = 'none';
+                document.getElementById('import-submit-btn').disabled = false;
+                document.getElementById('import-results').innerHTML = `<div class="alert alert-danger">
+                    <strong>❌ Error</strong><br>
+                    ${error.message}
+                </div>`;
+                document.getElementById('import-results').style.display = 'block';
+                window.RaceTimingApp.showAlert('Error: ' + error.message, 'danger');
+            }
+        }
+
+        loadParticipants();
+    </script>
+</body>
+
+</html>

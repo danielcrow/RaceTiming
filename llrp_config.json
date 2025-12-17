@@ -1,0 +1,10 @@
+{
+  "reader_ip": "192.168.1.130",
+  "reader_port": 5084,
+  "cooldown_seconds": 5,
+  "reader_latitude": 0,
+  "reader_longitude": 0,
+  "rufus_api_url": "https://api.runonrufus.com/v1",
+  "rufus_api_key": "",
+  "rufus_device_id": ""
+}

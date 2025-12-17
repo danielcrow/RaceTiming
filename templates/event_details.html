@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Details</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link active">Events</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <div class="breadcrumb-item">
+                    <a href="/">🏠 Dashboard</a>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item">
+                    <a href="/events">Events</a>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item active" id="breadcrumb-event-name">
+                    Loading...
+                </div>
+            </nav>
+
+            <div class="mb-4">
+                <a href="/events" class="text-muted">&larr; Back to Events</a>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-between align-start">
+                        <div>
+                            <h1 id="event-name" class="mb-2">Loading...</h1>
+                            <div class="text-muted mb-2">
+                                <span id="event-date"></span> &bull; <span id="event-location"></span>
+                            </div>
+                            <p id="event-description"></p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" onclick="showCreateRaceForm()">+ Add Race to Event</button>
+                            <button class="btn btn-secondary" onclick="showAssignRaceModal()">📎 Assign Existing
+                                Race</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Race Form -->
+            <div id="create-race-form" class="card mb-4" style="display: none;">
+                <div class="card-header">Add Race to Event</div>
+                <div class="card-body">
+                    <form id="race-form" onsubmit="createRace(event)">
+                        <input type="hidden" name="event_id" value="{{ event_id }}">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Race Name *</label>
+                                <input type="text" class="form-control" name="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Race Type *</label>
+                                <select class="form-select" name="race_type" required>
+                                    <option value="triathlon">🏊🚴🏃 Triathlon</option>
+                                    <option value="duathlon">🏃🚴🏃 Duathlon</option>
+                                    <option value="aquathlon">🏊🏃 Aquathlon</option>
+                                    <option value="running">🏃 Running</option>
+                                    <option value="cycling">🚴 Cycling</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Date *</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-control" name="location">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Create Race</button>
+                            <button type="button" class="btn btn-secondary"
+                                onclick="hideCreateRaceForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Races List -->
+            <div class="card">
+                <div class="card-header">Races in this Event</div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Date</th>
+                                <th>Participants</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="races-table">
+                            <tr>
+                                <td colspan="5" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Assign Existing Race Modal -->
+    <div id="assign-race-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close" onclick="closeAssignRaceModal()">&times;</span>
+            <h2>Assign Existing Race to Event</h2>
+
+            <div class="form-group mb-4">
+                <label class="form-label">Select Race</label>
+                <select id="race-to-assign" class="form-select" size="10" style="height: 300px;">
+                    <option value="">Loading races...</option>
+                </select>
+                <small class="text-muted">Select a race that is not assigned to this event</small>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" onclick="assignRaceToEvent()">Assign to Event</button>
+                <button class="btn btn-secondary" onclick="closeAssignRaceModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        const eventId = {{ event_id }};
+
+        function showCreateRaceForm() {
+            document.getElementById('create-race-form').style.display = 'block';
+            // Pre-fill date/location from event
+            // We need to fetch event details first or store them globally
+        }
+
+        function hideCreateRaceForm() {
+            document.getElementById('create-race-form').style.display = 'none';
+            document.getElementById('race-form').reset();
+        }
+
+        async function createRace(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData);
+
+            try {
+                await window.RaceTimingApp.API.createRace(data);
+                window.RaceTimingApp.showAlert('Race created successfully!', 'success');
+                hideCreateRaceForm();
+                loadEventDetails();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error creating race: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteRace(id, name) {
+            if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+            try {
+                await window.RaceTimingApp.API.deleteRace(id);
+                window.RaceTimingApp.showAlert('Race deleted successfully', 'success');
+                loadEventDetails();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting race: ' + error.message, 'danger');
+            }
+        }
+
+        async function loadEventDetails() {
+            try {
+                const event = await window.RaceTimingApp.API.getEvent(eventId);
+
+                // Update header
+                document.getElementById('event-name').textContent = event.name;
+                document.getElementById('breadcrumb-event-name').textContent = event.name;
+                document.getElementById('event-date').textContent = window.RaceTimingApp.formatDate(event.date);
+                document.getElementById('event-location').textContent = event.location || 'No location';
+                document.getElementById('event-description').textContent = event.description || '';
+
+                // Pre-fill form defaults
+                const dateInput = document.querySelector('input[name="date"]');
+                if (dateInput && !dateInput.value) {
+                    dateInput.value = event.date.split('T')[0];
+                }
+                const locInput = document.querySelector('input[name="location"]');
+                if (locInput && !locInput.value) {
+                    locInput.value = event.location || '';
+                }
+
+                // Update races table
+                const tbody = document.getElementById('races-table');
+                tbody.innerHTML = '';
+
+                if (event.races.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No races in this event yet.</td></tr>';
+                    return;
+                }
+
+                event.races.forEach(race => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${race.name}</strong></td>
+                        <td>${window.RaceTimingApp.getRaceTypeIcon(race.race_type)} ${race.race_type}</td>
+                        <td>${window.RaceTimingApp.formatDate(race.date)}</td>
+                        <td><span class="badge badge-primary">${race.participant_count}</span></td>
+                        <td>
+                            <a href="/races?edit=${race.id}" class="btn btn-sm btn-secondary">Edit</a>
+                            <a href="/race/${race.id}/control" class="btn btn-sm btn-primary">Control</a>
+                            <a href="/race/${race.id}/leaderboard" class="btn btn-sm btn-success">Leaderboard</a>
+                            <button onclick="deleteRace(${race.id}, '${race.name.replace(/'/g, "\\'")}')" class="btn btn-sm btn-danger">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading event details:', error);
+                window.RaceTimingApp.showAlert('Error loading event details', 'danger');
+            }
+        }
+
+        loadEventDetails();
+
+        // Assign Existing Race Modal Functions
+        async function showAssignRaceModal() {
+            const modal = document.getElementById('assign-race-modal');
+            modal.style.display = 'block';
+            await loadAvailableRaces();
+        }
+
+        function closeAssignRaceModal() {
+            document.getElementById('assign-race-modal').style.display = 'none';
+        }
+
+        async function loadAvailableRaces() {
+            try {
+                const allRaces = await window.RaceTimingApp.API.getRaces();
+                // Filter out races already in this event
+                const availableRaces = allRaces.filter(r => r.event_id !== eventId);
+
+                const select = document.getElementById('race-to-assign');
+                select.innerHTML = '';
+
+                if (availableRaces.length === 0) {
+                    select.innerHTML = '<option value="">No races available to assign</option>';
+                    return;
+                }
+
+                availableRaces.forEach(race => {
+                    const option = document.createElement('option');
+                    option.value = race.id;
+                    const eventInfo = race.event_name ? ` (Currently in: ${race.event_name})` : ' (No event)';
+                    option.textContent = `${race.name} - ${race.race_type}${eventInfo}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading available races:', error);
+                window.RaceTimingApp.showAlert('Error loading races', 'danger');
+            }
+        }
+
+        async function assignRaceToEvent() {
+            const raceId = document.getElementById('race-to-assign').value;
+
+            if (!raceId) {
+                window.RaceTimingApp.showAlert('Please select a race', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/races/${raceId}/event`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_id: eventId })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to assign race');
+                }
+
+                window.RaceTimingApp.showAlert('Race assigned to event successfully!', 'success');
+                closeAssignRaceModal();
+                loadEventDetails();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error assigning race: ' + error.message, 'danger');
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,17 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.db
+*.sqlite
+*.log
+.DS_Store
+race_timing.db
+*.egg-info/
+dist/
+build/

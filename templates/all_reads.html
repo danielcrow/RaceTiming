@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Race Reads</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .race-section {
+            margin-bottom: 2rem;
+        }
+
+        .race-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 1rem;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-between;
+            align-items: center;
+        }
+
+        .race-stats {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .reads-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .new-read {
+            animation: highlight 1s ease-in-out;
+        }
+
+        @keyframes highlight {
+            0% {
+                background-color: var(--success-color);
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        .filter-bar {
+            background: var(--gray-100);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+                    <li><a href="/all-reads" class="nav-link active">All Reads</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <div class="breadcrumb-item">
+                    <a href="/">🏠 Dashboard</a>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item active">
+                    All Reads
+                </div>
+            </nav>
+
+            <div class="d-flex justify-between align-center mb-4">
+                <h1>📡 All Race Reads</h1>
+                <div>
+                    <button class="btn btn-primary" onclick="refreshAllReads()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="toggleAutoRefresh()">
+                        <span id="auto-refresh-text">⏸️ Pause Auto-Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <label>
+                    <input type="checkbox" id="filter-active-only" checked onchange="filterRaces()">
+                    Show active races only
+                </label>
+                <label>
+                    <input type="checkbox" id="auto-scroll" checked>
+                    Auto-scroll to new reads
+                </label>
+                <span class="text-muted" style="margin-left: auto;">
+                    Last updated: <span id="last-update">Never</span>
+                </span>
+            </div>
+
+            <!-- Races Container -->
+            <div id="races-container">
+                <div class="text-center text-muted">Loading races...</div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let autoRefreshInterval;
+        let autoRefreshEnabled = true;
+        let lastReadIds = new Set();
+
+        async function loadAllReads() {
+            try {
+                const races = await window.RaceTimingApp.API.getRaces();
+                const container = document.getElementById('races-container');
+
+                // Filter races based on checkbox
+                const filterActiveOnly = document.getElementById('filter-active-only').checked;
+                const filteredRaces = filterActiveOnly
+                    ? races.filter(r => r.start_time || r.llrp_enabled)
+                    : races;
+
+                if (filteredRaces.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted">No active races found</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+
+                for (const race of filteredRaces) {
+                    const section = await createRaceSection(race);
+                    container.appendChild(section);
+                }
+
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error('Error loading reads:', error);
+                window.RaceTimingApp.showAlert('Error loading race reads: ' + error.message, 'danger');
+            }
+        }
+
+        async function createRaceSection(race) {
+            const section = document.createElement('div');
+            section.className = 'race-section card';
+            section.id = `race-${race.id}`;
+
+            // Get time records for this race
+            const records = await window.RaceTimingApp.API.getTimeRecords(race.id);
+
+            // Get results for stats
+            const results = await window.RaceTimingApp.API.getResults(race.id);
+            const stats = {
+                total: results.length,
+                started: results.filter(r => r.status === 'started' || r.status === 'finished').length,
+                finished: results.filter(r => r.status === 'finished').length,
+                reads: records.length
+            };
+
+            section.innerHTML = `
+                <div class="race-header">
+                    <div>
+                        <h3 style="margin: 0;">${race.name}</h3>
+                        <small>${race.race_type} • ${window.RaceTimingApp.formatDate(race.date)}</small>
+                    </div>
+                    <div class="race-stats">
+                        <div><strong>${stats.reads}</strong> reads</div>
+                        <div><strong>${stats.started}</strong> started</div>
+                        <div><strong>${stats.finished}</strong> finished</div>
+                        <div><strong>${stats.total}</strong> total</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="reads-table">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Bib</th>
+                                    <th>Participant</th>
+                                    <th>Timing Point</th>
+                                    <th>Source</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reads-${race.id}">
+                                ${records.length === 0 ?
+                    '<tr><td colspan="5" class="text-center text-muted">No reads yet</td></tr>' :
+                    records.map(r => createReadRow(r)).join('')
+                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            return section;
+        }
+
+        function createReadRow(record) {
+            const isNew = !lastReadIds.has(record.id);
+            if (isNew) lastReadIds.add(record.id);
+
+            const date = new Date(record.timestamp);
+            const timeStr = date.toLocaleTimeString();
+            const sourceClass = record.source === 'llrp' ? 'primary' : 'secondary';
+
+            return `
+                <tr class="${isNew ? 'new-read' : ''}" data-read-id="${record.id}">
+                    <td><strong>${timeStr}</strong></td>
+                    <td><strong>#${getBibNumber(record)}</strong></td>
+                    <td>${record.participant.name}</td>
+                    <td>${record.timing_point.name}</td>
+                    <td><span class="badge badge-${sourceClass}">${record.source.toUpperCase()}</span></td>
+                </tr>
+            `;
+        }
+
+        function getBibNumber(record) {
+            // Try to get bib from participant's race registration
+            // For now, return a placeholder
+            return '?';
+        }
+
+        function filterRaces() {
+            loadAllReads();
+        }
+
+        function refreshAllReads() {
+            loadAllReads();
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const btn = document.getElementById('auto-refresh-text');
+
+            if (autoRefreshEnabled) {
+                btn.textContent = '⏸️ Pause Auto-Refresh';
+                startAutoRefresh();
+            } else {
+                btn.textContent = '▶️ Resume Auto-Refresh';
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                }
+            }
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(() => {
+                if (autoRefreshEnabled) {
+                    loadAllReads();
+                }
+            }, 5000); // Refresh every 5 seconds
+        }
+
+        // Initialize
+        loadAllReads();
+        startAutoRefresh();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        });
+    </script>
+</body>
+
+</html>

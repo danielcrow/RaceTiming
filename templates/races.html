@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Management</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/races" class="nav-link active">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <div class="breadcrumb-item">
+                    <a href="/">🏠 Dashboard</a>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item active">
+                    Races
+                </div>
+            </nav>
+
+            <div class="d-flex justify-between align-center mb-4">
+                <h1>Race Management</h1>
+                <button class="btn btn-primary" onclick="showCreateForm()">+ Create New Race</button>
+            </div>
+
+            <!-- Create Race Form -->
+            <div id="create-form" class="card" style="display: none;">
+                <div class="card-header">Create New Race</div>
+                <div class="card-body">
+                    <!-- Template Selection -->
+                    <div class="form-group mb-3">
+                        <label class="form-label">Start from Template (Optional)</label>
+                        <select class="form-select" id="template-select" onchange="loadTemplate()">
+                            <option value="">-- Create from scratch --</option>
+                            <optgroup label="Duathlon Templates">
+                                <option value="sprint_duathlon">Sprint Duathlon (5K Run - 20K Bike - 2.5K Run)</option>
+                                <option value="standard_duathlon">Standard Duathlon (10K Run - 40K Bike - 5K Run)
+                                </option>
+                                <option value="long_duathlon">Long Distance Duathlon (15K Run - 60K Bike - 10K Run)
+                                </option>
+                            </optgroup>
+                            <optgroup label="Aquathlon Templates">
+                                <option value="sprint_aquathlon">Sprint Aquathlon (750m Swim - 5K Run)</option>
+                                <option value="standard_aquathlon">Standard Aquathlon (1.5K Swim - 10K Run)</option>
+                                <option value="long_aquathlon">Long Distance Aquathlon (2K Swim - 15K Run)</option>
+                            </optgroup>
+                        </select>
+                        <small class="text-muted">Templates include pre-configured timing points and race legs</small>
+                    </div>
+
+                    <form id="race-form" onsubmit="createRace(event)">
+                        <input type="hidden" id="template-id" name="template_id">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Race Name *</label>
+                                <input type="text" class="form-control" id="race-name" name="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Race Type *</label>
+                                <select class="form-select" id="race-type" name="race_type" required>
+                                    <option value="triathlon">🏊🚴🏃 Triathlon</option>
+                                    <option value="duathlon">🏃🚴🏃 Duathlon</option>
+                                    <option value="aquathlon">🏊🏃 Aquathlon</option>
+                                    <option value="running">🏃 Running</option>
+                                    <option value="cycling">🚴 Cycling</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Start Mode *</label>
+                                <select class="form-select" id="start-mode" name="start_mode" required>
+                                    <option value="mass_start" selected>Mass Start (All start together)</option>
+                                    <option value="chip_start">Chip Start (Individual start times)</option>
+                                </select>
+                                <small class="text-muted"
+                                    style="display: block; margin-top: 0.25rem; font-size: 0.8em;">
+                                    <strong>Mass Start:</strong> Everyone starts at the race start time.<br>
+                                    <strong>Chip Start:</strong> Time starts when participant crosses the start line.
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Date *</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-control" name="location">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="race-description" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Create Race</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideCreateForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Races List -->
+            <div class="card">
+                <div class="card-header">All Races</div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Date</th>
+                                <th>Location</th>
+                                <th>Event</th>
+                                <th>Participants</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="races-table">
+                            <tr>
+                                <td colspan="7" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Edit Race Modal -->
+    <div id="edit-race-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>Edit Race: <span id="edit-race-name"></span></h2>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="openTab(event, 'tab-checkpoints')">Checkpoints</button>
+                <button class="tab-btn" onclick="openTab(event, 'tab-age-groups')">Age Groups</button>
+            </div>
+
+            <!-- Checkpoints Tab -->
+            <div id="tab-checkpoints" class="tab-content active">
+                <div class="d-flex justify-between align-center mb-4">
+                    <h3>Timing Points</h3>
+                    <button class="btn btn-sm btn-success" onclick="showAddCheckpointForm()">+ Add Point</button>
+                </div>
+
+                <div id="add-checkpoint-form" class="card mb-4" style="display: none; background: var(--gray-50);">
+                    <div class="card-body">
+                        <div class="grid grid-3">
+                            <div class="form-group">
+                                <label class="form-label">Name</label>
+                                <input type="text" id="new-cp-name" class="form-control" placeholder="e.g. 5km Split">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Order</label>
+                                <input type="number" id="new-cp-order" class="form-control" placeholder="e.g. 2">
+                            </div>
+                            <div class="form-group d-flex align-center" style="padding-top: 2rem;">
+                                <button class="btn btn-primary" onclick="addCheckpoint()">Add</button>
+                                <button class="btn btn-secondary ml-2" onclick="hideAddCheckpointForm()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Order</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>LLRP Station</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="checkpoints-table"></tbody>
+                </table>
+            </div>
+
+            <!-- Age Groups Tab -->
+            <div id="tab-age-groups" class="tab-content">
+                <div class="d-flex justify-between align-center mb-4">
+                    <h3>Age Groups</h3>
+                    <button class="btn btn-success" onclick="loadStandardAgeGroups()">
+                        📋 Load Standard Template
+                    </button>
+                </div>
+                <p class="text-muted mb-4">Define custom age groups. Leave empty to use system defaults.</p>
+
+                <div class="grid grid-2">
+                    <div>
+                        <h4>Current Groups</h4>
+                        <div id="age-groups-list" class="card" style="min-height: 200px;"></div>
+                    </div>
+                    <div>
+                        <h4>Add Group</h4>
+                        <div class="card">
+                            <div class="form-group">
+                                <label class="form-label">Name</label>
+                                <input type="text" id="custom-ag-name" class="form-control" placeholder="e.g. Junior">
+                            </div>
+                            <div class="grid grid-2">
+                                <div class="form-group">
+                                    <label class="form-label">Min Age</label>
+                                    <input type="number" id="custom-ag-min" class="form-control" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Max Age</label>
+                                    <input type="number" id="custom-ag-max" class="form-control" placeholder="99">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%;" onclick="addCustomAgeGroup()">Add
+                                Group</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Participant Modal -->
+    <div id="register-participant-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close" onclick="closeRegisterModal()">&times;</span>
+            <h2>Register Participant for <span id="register-race-name"></span></h2>
+
+            <form id="register-form" onsubmit="registerParticipant(event)">
+                <input type="hidden" id="register-race-id">
+                <div class="form-group">
+                    <label class="form-label">Select Participant *</label>
+                    <div id="participant-select-container"></div>
+                    <input type="hidden" id="register-participant-id" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bib Number *</label>
+                    <input type="text" class="form-control" id="register-bib" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <input type="text" class="form-control" id="register-category" placeholder="e.g. Open, Elite">
+                </div>
+                <div class="d-flex gap-2" style="margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary">Register</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeRegisterModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Access all functions directly from window.RaceTimingApp to avoid duplicate declarations
+
+        function showCreateForm() {
+            document.getElementById('create-form').style.display = 'block';
+        }
+
+        function hideCreateForm() {
+            document.getElementById('create-form').style.display = 'none';
+            document.getElementById('race-form').reset();
+            document.getElementById('template-select').value = '';
+            document.getElementById('template-id').value = '';
+        }
+
+        async function loadTemplate() {
+            const templateId = document.getElementById('template-select').value;
+
+            if (!templateId) {
+                // Clear form if no template selected
+                document.getElementById('race-name').value = '';
+                document.getElementById('race-description').value = '';
+                document.getElementById('template-id').value = '';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/race-templates/${templateId}`);
+                const template = await response.json();
+
+                // Pre-fill form with template data
+                document.getElementById('race-name').value = template.name;
+                document.getElementById('race-type').value = template.race_type;
+                document.getElementById('race-description').value = template.description;
+                document.getElementById('template-id').value = templateId;
+
+                window.RaceTimingApp.showAlert('Template loaded! Modify the details and create your race.', 'info');
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error loading template: ' + error.message, 'danger');
+            }
+        }
+
+        async function createRace(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData);
+
+            // Remove template_id if empty
+            if (!data.template_id) {
+                delete data.template_id;
+            }
+
+            try {
+                let result;
+                if (data.template_id) {
+                    // Create from template
+                    const response = await fetch('/api/races/from-template', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    if (!response.ok) throw new Error('Failed to create race from template');
+                    result = await response.json();
+                } else {
+                    // Create normally
+                    result = await window.RaceTimingApp.API.createRace(data);
+                }
+
+                window.RaceTimingApp.showAlert('Race created successfully!', 'success');
+                hideCreateForm();
+                loadRaces();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error creating race: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteRace(id, name) {
+            if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+            try {
+                await window.RaceTimingApp.API.deleteRace(id);
+                window.RaceTimingApp.showAlert('Race deleted successfully', 'success');
+                loadRaces();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting race: ' + error.message, 'danger');
+            }
+        }
+
+        async function loadRaces() {
+            try {
+                const races = await window.RaceTimingApp.API.getRaces();
+                const tbody = document.getElementById('races-table');
+                tbody.innerHTML = '';
+
+                if (races.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No races found. Create your first race!</td></tr>';
+                    return;
+                }
+
+                races.forEach(race => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${race.name}</strong></td>
+                        <td>${window.RaceTimingApp.getRaceTypeIcon(race.race_type)} ${race.race_type}</td>
+                        <td>${window.RaceTimingApp.formatDate(race.date)}</td>
+                        <td>${race.location || '-'}</td>
+                        <td>${race.event_name ? `<a href="/event/${race.event_id}">${race.event_name}</a>` : '-'}</td>
+                        <td><span class="badge badge-primary">${race.participant_count}</span></td>
+                        <td>
+                            <a href="/race/${race.id}/control" class="btn btn-sm btn-primary">Control</a>
+                            <a href="/race/${race.id}/leaderboard" class="btn btn-sm btn-success">Leaderboard</a>
+                            <button onclick="openRegisterModal(${race.id}, '${race.name.replace(/'/g, "\\'")}')" class="btn btn-sm btn-info">Register</button>
+                            <button onclick="openEditModal(${race.id})" class="btn btn-sm btn-secondary">Edit</button>
+                            <button onclick="deleteRace(${race.id}, '${race.name.replace(/'/g, "\\'")}')" class="btn btn-sm btn-danger">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading races:', error);
+            }
+        }
+
+        loadRaces();
+
+        // Edit Modal Logic
+        let currentRaceId = null;
+        let currentRace = null;
+
+        function openTab(evt, tabName) {
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].style.display = "none";
+                tabContents[i].classList.remove("active");
+            }
+
+            const tabBtns = document.getElementsByClassName("tab-btn");
+            for (let i = 0; i < tabBtns.length; i++) {
+                tabBtns[i].className = tabBtns[i].className.replace(" active", "");
+            }
+
+            document.getElementById(tabName).style.display = "block";
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.className += " active";
+        }
+
+        async function openEditModal(raceId) {
+            currentRaceId = raceId;
+            const modal = document.getElementById('edit-race-modal');
+            modal.style.display = 'block';
+            await loadLLRPStations();
+            await loadRaceDetails();
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-race-modal').style.display = 'none';
+            currentRaceId = null;
+        }
+
+        async function loadRaceDetails() {
+            if (!currentRaceId) return;
+            try {
+                currentRace = await window.RaceTimingApp.API.getRace(currentRaceId);
+                document.getElementById('edit-race-name').textContent = currentRace.name;
+
+                // Load checkpoints
+                renderCheckpoints();
+
+                // Load age groups
+                renderAgeGroups();
+            } catch (error) {
+                console.error('Error loading race details:', error);
+            }
+        }
+
+
+
+        // Registration Logic
+        let participantSelect;
+
+        async function initParticipantSelect() {
+            try {
+                const participants = await window.RaceTimingApp.API.getParticipants();
+                const options = participants.map(p => ({
+                    value: p.id,
+                    label: `${p.full_name} (Age: ${p.age || '?'}, Gender: ${p.gender || '?'})`
+                }));
+
+                participantSelect = new window.SearchableSelect('participant-select-container', options, (val) => {
+                    document.getElementById('register-participant-id').value = val || '';
+                });
+            } catch (error) {
+                console.error('Error initializing participant select:', error);
+            }
+        }
+
+        function openRegisterModal(raceId, raceName) {
+            document.getElementById('register-participant-modal').style.display = 'block';
+            document.getElementById('register-race-id').value = raceId;
+            document.getElementById('register-race-name').textContent = raceName;
+            document.getElementById('register-bib').value = '';
+            document.getElementById('register-category').value = 'Open';
+            document.getElementById('register-participant-id').value = '';
+
+            if (!participantSelect) {
+                initParticipantSelect();
+            } else {
+                participantSelect.clear();
+                // Refresh participants list in case new ones were added?
+                // For now assume static list or reload page to refresh.
+            }
+        }
+
+        function closeRegisterModal() {
+            document.getElementById('register-participant-modal').style.display = 'none';
+        }
+
+        async function registerParticipant(event) {
+            event.preventDefault();
+            const raceId = document.getElementById('register-race-id').value;
+            const participantId = document.getElementById('register-participant-id').value;
+            const bibNumber = document.getElementById('register-bib').value;
+            const category = document.getElementById('register-category').value;
+
+            if (!participantId) {
+                window.RaceTimingApp.showAlert('Please select a participant', 'danger');
+                return;
+            }
+
+            try {
+                await window.RaceTimingApp.API.registerParticipant(participantId, {
+                    race_id: parseInt(raceId),
+                    bib_number: bibNumber,
+                    category: category
+                });
+                window.RaceTimingApp.showAlert('Participant registered successfully!', 'success');
+                closeRegisterModal();
+                loadRaces(); // Refresh to update participant count
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error registering participant: ' + error.message, 'danger');
+            }
+        }
+
+
+        // Checkpoints Logic
+        let llrpStations = [];
+
+        async function loadLLRPStations() {
+            try {
+                const response = await fetch('/api/llrp-stations');
+                llrpStations = await response.json();
+            } catch (error) {
+                console.error('Error loading LLRP stations:', error);
+            }
+        }
+
+        function showAddCheckpointForm() {
+            document.getElementById('add-checkpoint-form').style.display = 'block';
+        }
+
+        function hideAddCheckpointForm() {
+            document.getElementById('add-checkpoint-form').style.display = 'none';
+            document.getElementById('new-cp-name').value = '';
+            document.getElementById('new-cp-order').value = '';
+        }
+
+        function renderCheckpoints() {
+            const tbody = document.getElementById('checkpoints-table');
+            tbody.innerHTML = '';
+
+            const points = currentRace.timing_points || [];
+            points.forEach(tp => {
+                const tr = document.createElement('tr');
+
+                // Build station dropdown
+                let stationDropdown = '<select class="form-select form-select-sm" onchange="assignStation(' + tp.id + ', this.value)">';
+                stationDropdown += '<option value="">No Station</option>';
+                llrpStations.forEach(station => {
+                    const selected = tp.llrp_station_id === station.id ? 'selected' : '';
+                    stationDropdown += `<option value="${station.id}" ${selected}>${station.name}</option>`;
+                });
+                stationDropdown += '</select>';
+
+                tr.innerHTML = `
+<td>${tp.order}</td>
+<td>${tp.name}</td>
+<td>
+    ${tp.is_start ? '<span class="badge badge-success">Start</span>' : ''}
+    ${tp.is_finish ? '<span class="badge badge-danger">Finish</span>' : ''}
+    ${!tp.is_start && !tp.is_finish ? '<span class="badge badge-secondary">Split</span>' : ''}
+</td>
+<td>${stationDropdown}</td>
+<td>
+    <button onclick="deleteCheckpoint(${tp.id})" class="btn btn-sm btn-danger" ${tp.is_start || tp.is_finish
+                        ? 'disabled' : ''}>Delete</button>
+</td>
+`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function assignStation(timingPointId, stationId) {
+            try {
+                await fetch(`/api/races/${currentRaceId}/timing-points/${timingPointId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        llrp_station_id: stationId ? parseInt(stationId) : null
+                    })
+                });
+                window.RaceTimingApp.showAlert('Station assigned successfully', 'success');
+                await loadRaceDetails();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error assigning station: ' + error.message, 'danger');
+            }
+        }
+
+        async function addCheckpoint() {
+            const name = document.getElementById('new-cp-name').value;
+            const order = document.getElementById('new-cp-order').value;
+
+            if (!name || !order) {
+                alert('Please enter name and order');
+                return;
+            }
+
+            try {
+                await window.RaceTimingApp.API.addTimingPoint(currentRaceId, {
+                    name,
+                    order: parseInt(order)
+                });
+                hideAddCheckpointForm();
+                await loadRaceDetails();
+                window.RaceTimingApp.showAlert('Checkpoint added', 'success');
+            } catch (error) {
+                alert('Error adding checkpoint: ' + error.message);
+            }
+        }
+
+        async function deleteCheckpoint(tpId) {
+            if (!confirm('Delete this checkpoint?')) return;
+            try {
+                await window.RaceTimingApp.API.deleteTimingPoint(currentRaceId, tpId);
+                await loadRaceDetails();
+                window.RaceTimingApp.showAlert('Checkpoint deleted', 'success');
+            } catch (error) {
+                alert('Error deleting checkpoint: ' + error.message);
+            }
+        }
+
+        // Age Groups Logic
+        function renderAgeGroups() {
+            const list = document.getElementById('age-groups-list');
+            list.innerHTML = '';
+
+            const groups = currentRace.age_groups || [];
+
+            if (groups.length === 0) {
+                list.innerHTML = '<p class="text-muted p-2">Using system defaults (Under 20, 20-29, etc.)</p>';
+            } else {
+                const ul = document.createElement('ul');
+                ul.style.listStyle = 'none';
+                groups.forEach((g, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'd-flex justify-between align-center p-2 border-bottom';
+                    li.innerHTML = `
+<span>${g.name} (${g.min}-${g.max})</span>
+<button onclick="removeAgeGroup(${index})" class="btn btn-sm btn-danger">&times;</button>
+`;
+                    ul.appendChild(li);
+                });
+                list.appendChild(ul);
+            }
+        }
+
+
+        async function loadStandardAgeGroups() {
+            if (!confirm('This will replace all current age groups with the standard template. Continue?')) {
+                return;
+            }
+
+            const standardGroups = [
+                { name: "Juniors (U20)", min: 0, max: 19 },
+                { name: "Seniors (20-39)", min: 20, max: 39 },
+                { name: "Vets (40-49)", min: 40, max: 49 },
+                { name: "Super Vets (50-59)", min: 50, max: 59 },
+                { name: "Over 60s (60-69)", min: 60, max: 69 },
+                { name: "Over 70s (70+)", min: 70, max: 999 }
+            ];
+
+            await saveAgeGroups(standardGroups);
+            window.RaceTimingApp.showAlert('Standard age groups loaded successfully!', 'success');
+        }
+
+        async function addCustomAgeGroup() {
+            const name = document.getElementById('custom-ag-name').value;
+            const min = parseInt(document.getElementById('custom-ag-min').value);
+            const max = parseInt(document.getElementById('custom-ag-max').value);
+
+            if (!name || isNaN(min) || isNaN(max)) {
+                alert('Invalid input');
+                return;
+            }
+
+            const groups = currentRace.age_groups || [];
+            groups.push({ name, min, max });
+
+            await saveAgeGroups(groups);
+            document.getElementById('custom-ag-name').value = '';
+            document.getElementById('custom-ag-min').value = '';
+            document.getElementById('custom-ag-max').value = '';
+        }
+
+        async function removeAgeGroup(index) {
+            const groups = currentRace.age_groups || [];
+            groups.splice(index, 1);
+            await saveAgeGroups(groups);
+        }
+
+        async function saveAgeGroups(groups) {
+            try {
+                await window.RaceTimingApp.API.updateAgeGroups(currentRaceId, groups);
+                await loadRaceDetails();
+                window.RaceTimingApp.showAlert('Age groups updated', 'success');
+            } catch (error) {
+                alert('Error updating age groups: ' + error.message);
+            }
+        }
+    </script>
+</body>
+
+</html>

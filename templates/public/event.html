@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ event.name }} - Results</title>
+    <link rel="stylesheet" href="/static/css/public.css">
+</head>
+
+<body>
+    <header class="public-header">
+        <div class="container">
+            <h1>{{ event.name }}</h1>
+            <p>{{ event.date|format_date }}{% if event.location %} • {{ event.location }}{% endif %}</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <a href="/"
+            style="color: var(--primary); text-decoration: none; margin-bottom: 1rem; display: inline-block;">&larr;
+            Back to Events</a>
+
+        <h2>Races</h2>
+
+        {% if races %}
+        <div class="race-list">
+            {% for race in races %}
+            <div class="race-card">
+                <div class="race-info">
+                    <h4>{{ race.name }}</h4>
+                    <p class="race-meta">
+                        {{ race.race_type }}
+                        {% if race.start_time %}
+                        • Started {{ race.start_time|format_datetime }}
+                        {% endif %}
+                        {% if race.finish_time %}
+                        • Finished {{ race.finish_time|format_datetime }}
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="/race/{{ race.id }}" class="btn btn-primary">View Results</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <h3>No Races Yet</h3>
+            <p>Races will appear here when they are published.</p>
+        </div>
+        {% endif %}
+    </main>
+</body>
+
+</html>

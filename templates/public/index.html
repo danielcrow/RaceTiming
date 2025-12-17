@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Race Results</title>
+    <link rel="stylesheet" href="/static/css/public.css">
+</head>
+
+<body>
+    <header class="public-header">
+        <div class="container">
+            <h1>🏁 Live Race Results</h1>
+            <p>Real-time race results and leaderboards</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Search Section -->
+        <div class="search-section">
+            <form action="/" method="get" class="search-form">
+                <input type="text" name="q" class="search-input" placeholder="Search events, locations, or races..."
+                    value="{{ search_query }}" autocomplete="off">
+                <button type="submit" class="btn btn-primary search-btn">Search</button>
+                {% if search_query %}
+                <a href="/" class="btn btn-secondary clear-search">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+
+        {% if events %}
+        <section>
+            <h2>Current Events</h2>
+            <div class="events-grid">
+                {% for event in events %}
+                <div class="event-card">
+                    <h3>{{ event.name }}</h3>
+                    <p class="event-date">📅 {{ event.date|format_date }}</p>
+                    {% if event.location %}
+                    <p class="event-location">📍 {{ event.location }}</p>
+                    {% endif %}
+                    <a href="/event/{{ event.id }}" class="btn btn-primary">View Results</a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if standalone_races %}
+        <section style="margin-top: 3rem;">
+            <h2>Recent Races</h2>
+            <div class="race-list">
+                {% for race in standalone_races %}
+                <div class="race-card">
+                    <div class="race-info">
+                        <h4>{{ race.name }}</h4>
+                        <p class="race-meta">
+                            {{ race.race_type }} • {{ race.date|format_date }}
+                            {% if race.start_time %}
+                            • Started {{ race.start_time|format_datetime }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <a href="/race/{{ race.id }}" class="btn btn-primary">View Results</a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if not events and not standalone_races %}
+        <div class="empty-state">
+            <h3>No Results Available</h3>
+            <p>Check back soon for live race results!</p>
+        </div>
+        {% endif %}
+    </main>
+</body>
+
+</html>

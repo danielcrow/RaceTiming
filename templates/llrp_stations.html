@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLRP Stations</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link active">LLRP Stations</a></li>
+
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <div class="breadcrumb-item">
+                    <a href="/">🏠 Dashboard</a>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-item active">
+                    LLRP Stations
+                </div>
+            </nav>
+
+            <div class="d-flex justify-between align-center mb-4">
+                <h1>LLRP Stations</h1>
+                <button class="btn btn-primary" onclick="showCreateForm()">+ Add Station</button>
+            </div>
+
+            <!-- Create/Edit Station Form -->
+            <div id="station-form-container" class="card" style="display: none;">
+                <div class="card-header" id="form-title">Add LLRP Station</div>
+                <div class="card-body">
+                    <form id="station-form" onsubmit="saveStation(event)">
+                        <input type="hidden" id="station-id" name="id">
+
+                        <h3>Basic Configuration</h3>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Station Name *</label>
+                                <input type="text" class="form-control" name="name" id="station-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Reader IP Address *</label>
+                                <input type="text" class="form-control" name="reader_ip" id="reader-ip" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Reader Port</label>
+                                <input type="number" class="form-control" name="reader_port" id="reader-port"
+                                    value="5084">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Cooldown (seconds)</label>
+                                <input type="number" class="form-control" name="cooldown_seconds" id="cooldown"
+                                    value="5">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">Save Station</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Stations List -->
+            <div class="card">
+                <div class="card-header">Configured Stations</div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>IP:Port</th>
+                                <th>Status</th>
+                                <th>Timing Points</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stations-table">
+                            <tr>
+                                <td colspan="5" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let editingStationId = null;
+
+        function showCreateForm() {
+            document.getElementById('form-title').textContent = 'Add LLRP Station';
+            document.getElementById('station-form').reset();
+            document.getElementById('station-id').value = '';
+            editingStationId = null;
+            document.getElementById('station-form-container').style.display = 'block';
+        }
+
+        function hideForm() {
+            document.getElementById('station-form-container').style.display = 'none';
+            document.getElementById('station-form').reset();
+            editingStationId = null;
+        }
+
+
+        async function editStation(id) {
+            try {
+                const response = await fetch(`/api/llrp-stations/${id}`);
+                const station = await response.json();
+
+                document.getElementById('form-title').textContent = 'Edit LLRP Station';
+                document.getElementById('station-id').value = station.id;
+                document.getElementById('station-name').value = station.name;
+                document.getElementById('reader-ip').value = station.reader_ip;
+                document.getElementById('reader-port').value = station.reader_port;
+                document.getElementById('cooldown').value = station.cooldown_seconds;
+
+                editingStationId = id;
+                document.getElementById('station-form-container').style.display = 'block';
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error loading station: ' + error.message, 'danger');
+            }
+        }
+
+        async function saveStation(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {};
+
+            formData.forEach((value, key) => {
+                if (key !== 'id') {
+                    data[key] = value;
+                }
+            });
+
+            try {
+                if (editingStationId) {
+                    await fetch(`/api/llrp-stations/${editingStationId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    window.RaceTimingApp.showAlert('Station updated successfully!', 'success');
+                } else {
+                    await fetch('/api/llrp-stations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    window.RaceTimingApp.showAlert('Station created successfully!', 'success');
+                }
+                hideForm();
+                loadStations();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error saving station: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteStation(id, name) {
+            if (!confirm(`Delete station "${name}"?`)) return;
+
+            try {
+                await fetch(`/api/llrp-stations/${id}`, { method: 'DELETE' });
+                window.RaceTimingApp.showAlert('Station deleted successfully', 'success');
+                loadStations();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting station: ' + error.message, 'danger');
+            }
+        }
+
+        async function startStation(id) {
+            try {
+                const res = await fetch(`/api/llrp-stations/${id}/start`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    window.RaceTimingApp.showAlert('Station started', 'success');
+                    loadStations();
+                } else {
+                    window.RaceTimingApp.showAlert(data.error, 'danger');
+                }
+            } catch (e) {
+                window.RaceTimingApp.showAlert('Error: ' + e.message, 'danger');
+            }
+        }
+
+        async function stopStation(id) {
+            try {
+                const res = await fetch(`/api/llrp-stations/${id}/stop`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    window.RaceTimingApp.showAlert('Station stopped', 'success');
+                    loadStations();
+                } else {
+                    window.RaceTimingApp.showAlert(data.error, 'danger');
+                }
+            } catch (e) {
+                window.RaceTimingApp.showAlert('Error: ' + e.message, 'danger');
+            }
+        }
+
+        async function loadStations() {
+            try {
+                const response = await fetch('/api/llrp-stations');
+                const stations = await response.json();
+                const tbody = document.getElementById('stations-table');
+                tbody.innerHTML = '';
+
+                if (stations.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No stations configured. Add your first station!</td></tr>';
+                    return;
+                }
+
+                stations.forEach(station => {
+                    const tr = document.createElement('tr');
+                    const statusBadge = station.is_active ?
+                        '<span class="badge badge-success">Running</span>' :
+                        '<span class="badge badge-secondary">Stopped</span>';
+
+                    tr.innerHTML = `
+                        <td><strong>${station.name}</strong></td>
+                        <td>${station.reader_ip}:${station.reader_port}</td>
+                        <td>${statusBadge}</td>
+                        <td><span class="badge badge-primary">${station.timing_points?.length || 0}</span></td>
+                        <td>
+                            ${station.is_active ?
+                            `<button onclick="stopStation(${station.id})" class="btn btn-sm btn-warning">Stop</button>` :
+                            `<button onclick="startStation(${station.id})" class="btn btn-sm btn-success">Start</button>`
+                        }
+                            <button onclick="editStation(${station.id})" class="btn btn-sm btn-secondary" ${station.is_active ? 'disabled' : ''}>Edit</button>
+                            <button onclick="deleteStation(${station.id}, '${station.name.replace(/'/g, "\\'")}')" class="btn btn-sm btn-danger" ${station.is_active ? 'disabled' : ''}>Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading stations:', error);
+            }
+        }
+
+        loadStations();
+    </script>
+</body>
+
+</html>

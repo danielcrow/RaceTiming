@@ -1,0 +1,464 @@
+/* Results Publishing Site - Public CSS */
+
+:root {
+    --primary: #2563eb;
+    --primary-dark: #1e40af;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--gray-800);
+    background: var(--gray-50);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Header */
+.public-header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    padding: 2rem 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.public-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.public-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.public-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+/* Search Section */
+.search-section {
+    margin: -1.5rem auto 2rem;
+    max-width: 600px;
+    position: relative;
+    z-index: 10;
+}
+
+.search-form {
+    display: flex;
+    gap: 0.5rem;
+    background: white;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    border-color: var(--primary);
+}
+
+.search-btn {
+    padding: 0.75rem 1.5rem;
+}
+
+.clear-search {
+    padding: 0.75rem 1rem;
+    background: var(--gray-200);
+    color: var(--gray-700);
+    text-decoration: none;
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+}
+
+.clear-search:hover {
+    background: var(--gray-300);
+}
+
+/* Event Cards */
+.events-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.event-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+}
+
+.event-card:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.event-card h3 {
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.event-date {
+    color: var(--gray-600);
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.event-location {
+    color: var(--gray-600);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Race Cards */
+.race-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.race-info h4 {
+    margin-bottom: 0.25rem;
+}
+
+.race-meta {
+    font-size: 0.9rem;
+    color: var(--gray-600);
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 0.625rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-success {
+    background: var(--success);
+    color: white;
+}
+
+/* Results Header */
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--danger);
+    color: white;
+    border-radius: 9999px;
+    font-weight: 600;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Results Table */
+.results-table-container {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.results-table thead {
+    background: var(--gray-100);
+}
+
+.results-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-700);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.results-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.results-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.results-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Table Columns */
+.rank {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--primary);
+    width: 80px;
+}
+
+.bib {
+    font-weight: 600;
+    color: var(--gray-700);
+    width: 80px;
+}
+
+.name {
+    font-weight: 500;
+}
+
+.time {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--gray-900);
+}
+
+/* Split Times */
+.splits {
+    font-size: 0.85rem;
+}
+
+.split-times {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.split-item {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    background: var(--gray-100);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+}
+
+.splits-details {
+    position: relative;
+}
+
+.splits-summary {
+    cursor: pointer;
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    user-select: none;
+    list-style: none;
+    /* Remove default triangle */
+}
+
+.splits-summary::-webkit-details-marker {
+    display: none;
+    /* Remove default triangle in WebKit */
+}
+
+.splits-summary:hover {
+    text-decoration: underline;
+}
+
+.splits-details[open] .split-times {
+    margin-top: 0.5rem;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.status-finished {
+    background: var(--success);
+    color: white;
+}
+
+.status-started {
+    background: var(--warning);
+    color: white;
+}
+
+.status-registered {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.status-dnf {
+    background: var(--danger);
+    color: white;
+}
+
+.status-dns {
+    background: var(--gray-300);
+    color: var(--gray-700);
+}
+
+/* Podium Highlights */
+.results-table tbody tr:nth-child(1) .rank {
+    color: #fbbf24;
+}
+
+.results-table tbody tr:nth-child(2) .rank {
+    color: #9ca3af;
+}
+
+.results-table tbody tr:nth-child(3) .rank {
+    color: #cd7f32;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .public-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .events-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .results-table {
+        font-size: 0.875rem;
+    }
+
+    .results-table th,
+    .results-table td {
+        padding: 0.5rem;
+    }
+
+    .results-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+}
+
+/* Loading State */
+.loading {
+    text-align: center;
+    padding: 3rem;
+    color: var(--gray-600);
+}
+
+.loading::after {
+    content: '...';
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+
+    0%,
+    20% {
+        content: '.';
+    }
+
+    40% {
+        content: '..';
+    }
+
+    60%,
+    100% {
+        content: '...';
+    }
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--gray-600);
+}
+
+.empty-state h3 {
+    margin-bottom: 0.5rem;
+}

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Timing System - Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link active">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav class="breadcrumb">
+                <div class="breadcrumb-item active">
+                    🏠 Dashboard
+                </div>
+            </nav>
+
+            <h1>Race Timing Dashboard</h1>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-4 mb-4">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-races">0</div>
+                    <div class="stat-label">Total Races</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="upcoming-races">0</div>
+                    <div class="stat-label">Upcoming Races</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-participants">0</div>
+                    <div class="stat-label">Total Participants</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="active-races">0</div>
+                    <div class="stat-label">Active Races</div>
+                </div>
+            </div>
+
+            <!-- Upcoming Races -->
+            <div class="card">
+                <div class="card-header">Upcoming Races</div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Race</th>
+                                <th>Type</th>
+                                <th>Date</th>
+                                <th>Location</th>
+                                <th>Participants</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="upcoming-races-table">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">Quick Actions</div>
+                    <div class="card-body">
+                        <a href="/events" class="btn btn-success btn-lg" style="width: 100%; margin-bottom: 1rem;">
+                            📅 Create New Event
+                        </a>
+                        <a href="/races" class="btn btn-primary btn-lg" style="width: 100%; margin-bottom: 1rem;">
+                            🏁 Create New Race
+                        </a>
+                        <a href="/participants" class="btn btn-secondary btn-lg" style="width: 100%;">
+                            👤 Add Participant
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">System Info</div>
+                    <div class="card-body">
+                        <p><strong>Version:</strong> 1.0.0</p>
+                        <p><strong>Database:</strong> PostgreSQL</p>
+                        <p><strong>LLRP Support:</strong> Enabled</p>
+                        <p><strong>Status:</strong> <span class="badge badge-success">Online</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Race Timing System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Access all functions directly from window.RaceTimingApp to avoid duplicate declarations
+
+        async function loadDashboard() {
+            try {
+                const races = await window.RaceTimingApp.API.getRaces();
+                const participants = await window.RaceTimingApp.API.getParticipants();
+
+                // Update stats
+                document.getElementById('total-races').textContent = races.length;
+                document.getElementById('total-participants').textContent = participants.length;
+
+                // Calculate upcoming races (next races chronologically)
+                const now = new Date();
+                const upcoming = races
+                    .filter(r => new Date(r.date) >= now)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date))
+                    .slice(0, 10); // Show next 10 races
+
+                document.getElementById('upcoming-races').textContent = upcoming.length;
+
+                // Populate upcoming races table
+                const tbody = document.getElementById('upcoming-races-table');
+                tbody.innerHTML = '';
+
+                if (upcoming.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No upcoming races</td></tr>';
+                } else {
+                    upcoming.forEach(race => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${race.name}</strong></td>
+                            <td>${window.RaceTimingApp.getRaceTypeIcon(race.race_type)} ${race.race_type}</td>
+                            <td>${window.RaceTimingApp.formatDate(race.date)}</td>
+                            <td>${race.location || '-'}</td>
+                            <td><span class="badge badge-primary">${race.participant_count}</span></td>
+                            <td>
+                                <a href="/race/${race.id}/control" class="btn btn-sm btn-primary">Control</a>
+                                <a href="/race/${race.id}/leaderboard" class="btn btn-sm btn-secondary">View</a>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        // Load dashboard on page load
+        loadDashboard();
+    </script>
+</body>
+
+</html>

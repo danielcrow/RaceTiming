@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{ race.name }} – Live Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="dark">
+    <header class="hero">
+        <h1>{{ race.name }} – Live Results</h1>
+        <p>{{ race.date }} – {{ race.location or 'Online' }}</p>
+    </header>
+
+    <main class="container">
+        <table class="table glass">
+            <thead>
+                <tr>
+                    <th>Participant</th>
+                    <th>Checkpoint</th>
+                    <th>Time (local)</th>
+                </tr>
+            </thead>
+            <tbody id="results-body">
+                <!-- rows injected by JS -->
+            </tbody>
+        </table>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const raceId = {{ race_id| tojson
+        }};
+        }};
+
+
+        const resultsTable = document.getElementById('results-body');
+
+        function addRow(record) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${record.full_name}</td>
+                <td>${record.point_name}</td>
+                <td>${new Date(record.ts).toLocaleTimeString()}</td>
+            `;
+            resultsTable.appendChild(tr);
+        }
+
+        // Populate initial data
+        const initial = {{ results| tojson }};
+        initial.forEach(addRow);
+
+        // Subscribe to SSE
+        const evtSource = new EventSource(`/results/stream/${raceId}`);
+        evtSource.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            addRow(data);
+        };
+        evtSource.onerror = function () {
+            console.error('SSE connection lost – fallback to polling...');
+        };
+    });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ race.name }} - Live Results</title>
+    <link rel="stylesheet" href="/static/css/public.css">
+</head>
+
+<body>
+    <header class="public-header">
+        <div class="container">
+            <h1>{{ race.name }}</h1>
+            <p>{{ race.race_type }} • {{ race.date|format_date }}</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="results-header">
+            <h2>Results</h2>
+            {% if status == 'active' %}
+            <span class="live-indicator">🔴 LIVE</span>
+            {% elif status == 'finished' %}
+            <span class="status-badge status-finished">✓ Finished</span>
+            {% endif %}
+        </div>
+
+        <div class="results-table-container">
+            {% if results %}
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Bib</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Time</th>
+                        <th>Splits</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="results-tbody">
+                    {% for result in results %}
+                    <tr>
+                        <td class="rank">{{ result.overall_rank or '-' }}</td>
+                        <td class="bib">#{{ result.bib_number }}</td>
+                        <td class="name">{{ result.participant_name }}</td>
+                        <td class="category">{{ result.category or '-' }}</td>
+                        <td class="time">{{ result.total_time_seconds|format_time }}</td>
+                        <td class="splits">
+                            {% if result.split_times %}
+                            {% set splits = result.split_times if result.split_times is mapping else {} %}
+                            {% if splits %}
+                            <details class="splits-details">
+                                <summary class="splits-summary">View Splits ({{ splits|length }})</summary>
+                                <div class="split-times">
+                                    {% for checkpoint, time in splits.items() %}
+                                    <span class="split-item">{{ checkpoint }}: {{ time }}</span>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            {% else %}
+                            -
+                            {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td><span class="status-badge status-{{ result.status }}">{{ result.status|upper }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <h3>No Results Yet</h3>
+                <p>Results will appear here when the race starts.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 2rem; text-align: center; color: var(--gray-600); font-size: 0.875rem;">
+            <p>Last updated: <span id="last-update">{{ race.last_updated|format_datetime }}</span></p>
+            <p>Auto-refreshing every 10 seconds</p>
+        </div>
+    </main>
+
+    <script>
+        const raceId = {{ race.id }};
+
+        // Auto-refresh results every 10 seconds
+        setInterval(async () => {
+            try {
+                const response = await fetch(`/api/race/${raceId}/results`);
+                const data = await response.json();
+
+                if (data.results) {
+                    updateResults(data.results);
+                    document.getElementById('last-update').textContent = new Date().toLocaleString();
+                }
+            } catch (error) {
+                console.error('Error refreshing results:', error);
+            }
+        }, 10000);
+
+        function updateResults(results) {
+            const tbody = document.getElementById('results-tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = results.map(r => {
+                // Format splits
+                let splitsHtml = '-';
+                if (r.splits && typeof r.splits === 'object') {
+                    const splitEntries = Object.entries(r.splits);
+                    if (splitEntries.length > 0) {
+                        const splitItems = splitEntries
+                            .map(([checkpoint, time]) => `<span class="split-item">${checkpoint}: ${time}</span>`)
+                            .join('');
+
+                        splitsHtml = `
+                            <details class="splits-details">
+                                <summary class="splits-summary">View Splits (${splitEntries.length})</summary>
+                                <div class="split-times">${splitItems}</div>
+                            </details>
+                        `;
+                    }
+                }
+
+                return `
+                <tr>
+                    <td class="rank">${r.overall_rank || '-'}</td>
+                    <td class="bib">#${r.bib}</td>
+                    <td class="name">${r.name}</td>
+                    <td class="category">${r.category || '-'}</td>
+                    <td class="time">${formatTime(r.time_seconds)}</td>
+                    <td class="splits">${splitsHtml}</td>
+                    <td><span class="status-badge status-${r.status}">${r.status.toUpperCase()}</span></td>
+                </tr>
+            `}).join('');
+        }
+
+        function formatTime(seconds) {
+            if (!seconds) return '-';
+
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+    </script>
+</body>
+
+</html>

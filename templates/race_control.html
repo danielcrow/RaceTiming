@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Control</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="d-flex justify-between align-center mb-3">
+                <h1 id="race-name">Race Control</h1>
+                <div class="form-group" style="margin: 0; min-width: 250px;">
+                    <label class="form-label" style="font-size: 0.9rem; margin-bottom: 0.25rem;">Switch Race:</label>
+                    <select id="race-selector" class="form-select" onchange="switchRace(this.value)">
+                        <option value="">Loading races...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab(event, 'tab-overview')">📊 Overview</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-results')">🏆 Live Results</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-timing')">⏱️ Timing</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-actions')">⚙️ Actions</button>
+            </div>
+
+            <!-- Tab 1: Overview -->
+            <div id="tab-overview" class="tab-content active">
+                <!-- Race Info Card -->
+                <div class="card mb-4">
+                    <div class="card-header">Race Information</div>
+                    <div class="card-body">
+                        <div class="grid grid-3">
+                            <div>
+                                <label class="text-muted">Start Mode</label>
+                                <div id="start-mode-display" class="h4 mb-0"></div>
+                            </div>
+                            <div>
+                                <label class="text-muted">Start Time</label>
+                                <div id="start-time-display" class="h4 mb-0">Not Started</div>
+                            </div>
+                            <div>
+                                <label class="text-muted">Status</label>
+                                <div id="race-status-display" class="h4 mb-0">
+                                    <span class="badge badge-secondary">Ready</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="grid grid-4 mb-4">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label">Total Participants</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value text-success" id="stat-finished">0</div>
+                        <div class="stat-label">Finished</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value text-primary" id="stat-started">0</div>
+                        <div class="stat-label">In Progress</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value text-muted" id="stat-registered">0</div>
+                        <div class="stat-label">Registered</div>
+                    </div>
+                </div>
+
+                <!-- Control Panel -->
+                <div class="grid grid-2">
+                    <!-- Race Controls -->
+                    <div class="card">
+                        <div class="card-header">Race Controls</div>
+                        <div class="card-body">
+                            <button id="start-race-btn" class="btn btn-success w-100 mb-2" onclick="startRace()">
+                                ▶️ Start Race Now
+                            </button>
+                            <button id="stop-race-btn" class="btn btn-danger w-100 mb-2" style="display: none;"
+                                onclick="stopRace()">⏹️ Stop Race</button>
+                            <button id="reset-race-btn" class="btn btn-warning w-100 mb-2" style="display: none;"
+                                onclick="resetRace()">🔄 Reset Race</button>
+                            <button class="btn btn-outline-secondary w-100" onclick="showEditStartTime()">
+                                ✏️ Edit Start Time
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- LLRP Controls -->
+                    <div class="card">
+                        <div class="card-header">
+                            LLRP Timing
+                            <a href="/llrp-stations" class="btn btn-sm btn-secondary" target="_blank">Manage ↗</a>
+                        </div>
+                        <div class="card-body">
+                            <div id="llrp-status" class="mb-3"></div>
+                            <div id="llrp-stations-info" class="mb-3" style="font-size: 0.9rem;">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                            <button id="llrp-start-btn" class="btn btn-success w-100 mb-2" onclick="startLLRP()">
+                                📡 Enable LLRP Timing
+                            </button>
+                            <button id="llrp-stop-btn" class="btn btn-danger w-100" style="display: none;"
+                                onclick="stopLLRP()">🛑 Disable LLRP Timing</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="card mt-4">
+                    <div class="card-header">Quick Links</div>
+                    <div class="card-body">
+                        <div class="grid grid-3 mb-3">
+                            <a href="/race/{{ race_id }}/leaderboard" target="_blank" class="btn btn-success">
+                                📺 View Leaderboard
+                            </a>
+                            <button class="btn btn-primary" onclick="switchTab(event, 'tab-results')">
+                                📊 View Results
+                            </button>
+                            <button class="btn btn-primary" onclick="switchTab(event, 'tab-timing')">
+                                ⏱️ Record Time
+                            </button>
+                        </div>
+
+                        <!-- QR Code for Public Results -->
+                        <div class="text-center" style="padding: 1rem; background: var(--gray-50); border-radius: 8px;">
+                            <h4 style="margin-bottom: 0.5rem; font-size: 0.9rem;">📱 Scan for Public Results</h4>
+                            <img src="/api/races/{{ race_id }}/qrcode" alt="QR Code"
+                                style="width: 200px; height: 200px; margin: 0 auto;">
+                            <p style="font-size: 0.8rem; color: var(--gray-600); margin-top: 0.5rem;">
+                                Scan with phone to view live results
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code for Public Results -->
+            <div class="text-center" style="padding: 1rem; background: var(--gray-50); border-radius: 8px;">
+                <h4 style="margin-bottom: 0.5rem; font-size: 0.9rem;">📱 Scan for Public Results</h4>
+                <img src="/api/races/{{ race_id }}/qrcode" alt="QR Code"
+                    style="width: 200px; height: 200px; margin: 0 auto;">
+                <p style="font-size: 0.8rem; color: var(--gray-600); margin-top: 0.5rem;">
+                    Scan with phone to view live results
+                </p>
+            </div>
+        </div>
+        </div>
+        </div>
+
+        <!-- Tab 2: Live Results -->
+        <div id="tab-results" class="tab-content">
+            <div class="card">
+                <div class="card-header d-flex justify-between align-center">
+                    <span>Live Results</span>
+                    <button class="btn btn-sm btn-primary" onclick="refreshResults()">🔄 Refresh</button>
+                </div>
+                <div class="card-body">
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Bib</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Time</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-table">
+                                <tr>
+                                    <td colspan="7" class="text-center">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Markers -->
+            <div class="card mt-4">
+                <div class="card-header">Mark Participant Status</div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <button class="btn btn-warning" onclick="markStatus('dnf')">⚠️ Mark DNF (Did Not
+                            Finish)</button>
+                        <button class="btn btn-secondary" onclick="markStatus('dns')">❌ Mark DNS (Did Not
+                            Start)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Timing -->
+        <div id="tab-timing" class="tab-content">
+            <!-- Manual Time Entry -->
+            <div class="card mb-4">
+                <div class="card-header">Manual Time Entry</div>
+                <div class="card-body">
+                    <form onsubmit="recordTime(event)">
+                        <div class="grid grid-3">
+                            <div class="form-group">
+                                <label class="form-label">Bib Number</label>
+                                <input type="number" id="manual-bib" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Timing Point</label>
+                                <select id="manual-point" class="form-select" required>
+                                    <option value="Start">Start</option>
+                                    <option value="Finish">Finish</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">⏱️ Record Time Now</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Checkpoint Reads -->
+            <div class="card">
+                <div class="card-header d-flex justify-between align-center">
+                    <span>Checkpoint Reads</span>
+                    <button class="btn btn-sm btn-primary" onclick="refreshTimeRecords()">🔄 Refresh</button>
+                </div>
+                <div class="card-body">
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Bib</th>
+                                    <th>Participant</th>
+                                    <th>Timing Point</th>
+                                    <th>Time</th>
+                                    <th>Source</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="time-records-table">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Actions -->
+        <div id="tab-actions" class="tab-content">
+            <div class="grid grid-2">
+                <!-- Bulk Operations -->
+                <div class="card">
+                    <div class="card-header">Bulk Operations</div>
+                    <div class="card-body">
+                        <button class="btn btn-primary w-100 mb-2" onclick="recalculateResults()">
+                            🔄 Recalculate All Results
+                        </button>
+                        <button class="btn btn-success w-100 mb-2" onclick="publishResults()">
+                            📤 Publish Results to Public Site
+                        </button>
+                        <button class="btn btn-success w-100 mb-2" onclick="exportResults()">
+                            📥 Export Results (CSV)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Advanced Controls -->
+                <div class="card">
+                    <div class="card-header">Advanced</div>
+                    <div class="card-body">
+                        <a href="/races" class="btn btn-outline-secondary w-100 mb-2">
+                            ← Back to Races
+                        </a>
+                        <a href="/race/{{ race_id }}/leaderboard" target="_blank" class="btn btn-success w-100">
+                            📺 Open Leaderboard (New Window)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Edit Start Time Modal -->
+        <div id="edit-start-time-modal" class="modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+            <div class="modal-content card" style="margin: 10% auto; max-width: 400px;">
+                <div class="card-header">Edit Start Time</div>
+                <div class="card-body">
+                    <form onsubmit="updateStartTime(event)">
+                        <div class="form-group">
+                            <label class="form-label">Start Time</label>
+                            <input type="datetime-local" id="edit-start-time-input" class="form-control" step="1"
+                                required>
+                            <small class="text-muted">Enter the exact start time.</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Save</button>
+                            <button type="button" class="btn btn-secondary"
+                                onclick="closeEditStartTime()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Result Modal -->
+        <div id="edit-result-modal" class="modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+            <div class="modal-content card" style="margin: 5% auto; max-width: 600px;">
+                <div class="card-header">Edit Result</div>
+                <div class="card-body">
+                    <div id="edit-result-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Time Record Modal -->
+        <div id="edit-time-record-modal" class="modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+            <div class="modal-content card" style="margin: 5% auto; max-width: 500px;">
+                <div class="card-header">Edit Time Record</div>
+                <div class="card-body">
+                    <form onsubmit="saveEditTimeRecord(event)">
+                        <input type="hidden" id="edit-record-id">
+                        <div class="form-group">
+                            <label class="form-label">Participant</label>
+                            <p id="edit-record-participant" class="h5"></p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Timing Point</label>
+                            <select id="edit-record-timing-point" class="form-select" required>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Time</label>
+                            <input type="datetime-local" id="edit-record-timestamp" class="form-control" step="1"
+                                required>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Save</button>
+                            <button type="button" class="btn btn-secondary"
+                                onclick="closeEditTimeRecord()">Cancel</button>
+                            <button type="button" class="btn btn-danger"
+                                onclick="event.preventDefault(); deleteTimeRecordFromModal();">Delete</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        const raceId = {{ race_id }};
+        let refreshInterval;
+
+        // Multi-race support: Load and populate race selector
+        async function loadRaceSelector() {
+            try {
+                const races = await window.RaceTimingApp.API.getRaces();
+                const selector = document.getElementById('race-selector');
+                selector.innerHTML = '';
+
+                // Filter to races that have been started or have LLRP enabled (active races)
+                const activeRaces = races.filter(r => r.start_time || r.llrp_enabled);
+
+                if (activeRaces.length === 0) {
+                    selector.innerHTML = '<option value="">No active races</option>';
+                    return;
+                }
+
+                // Add all races (not just active) to allow switching to any race
+                races.forEach(race => {
+                    const option = document.createElement('option');
+                    option.value = race.id;
+                    option.textContent = race.name;
+                    option.selected = race.id === raceId;
+
+                    // Mark active races
+                    if (race.start_time || race.llrp_enabled) {
+                        option.textContent += ' 🟢';
+                    }
+
+                    selector.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading race selector:', error);
+            }
+        }
+
+        function switchRace(newRaceId) {
+            if (!newRaceId || newRaceId === String(raceId)) return;
+            // Navigate to the new race's control page
+            window.location.href = `/race/${newRaceId}/control`;
+        }
+
+        // Tab switching function
+        function switchTab(event, tabId) {
+            // Remove active class from all tabs and buttons
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            // Add active class to selected tab and button
+            document.getElementById(tabId).classList.add('active');
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
+        }
+
+        async function loadRaceInfo() {
+            try {
+                const race = await window.RaceTimingApp.API.getRace(raceId);
+                document.getElementById('race-name').textContent = `Race Control: ${race.name}`;
+
+                // Store timing points for use in edit modal
+                timingPoints = race.timing_points;
+
+                // Populate timing points for manual entry
+                const select = document.getElementById('manual-point');
+                select.innerHTML = '';
+                race.timing_points.forEach(tp => {
+                    const option = document.createElement('option');
+                    option.value = tp.name;
+                    option.textContent = tp.name;
+                    select.appendChild(option);
+                });
+
+                // Update start time display
+                updateStartTimeDisplay(race.start_time, race.finish_time);
+
+                // Update start mode display
+                const startModeDisplay = document.getElementById('start-mode-display');
+                if (race.start_mode === 'chip_start') {
+                    startModeDisplay.innerHTML = '<span class="badge badge-info">Chip Start</span>';
+                    document.getElementById('start-race-btn').textContent = 'Set Official Start Time';
+                } else {
+                    startModeDisplay.innerHTML = '<span class="badge badge-primary">Mass Start</span>';
+                }
+
+                // Display assigned LLRP stations for multi-race support
+                const stationsInfo = document.getElementById('llrp-stations-info');
+                const assignedStations = race.timing_points
+                    .filter(tp => tp.llrp_station_id)
+                    .map(tp => ({
+                        point: tp.name,
+                        stationId: tp.llrp_station_id,
+                        stationName: tp.llrp_station ? tp.llrp_station.name : `Station ${tp.llrp_station_id}`
+                    }));
+
+                if (assignedStations.length > 0) {
+                    const stationsList = assignedStations
+                        .map(s => `<strong>${s.point}</strong>: ${s.stationName}`)
+                        .join('<br>');
+                    stationsInfo.innerHTML = `
+                        <div class="text-muted">
+                            <small><strong>📡 Assigned Stations:</strong><br>${stationsList}</small>
+                        </div>
+                    `;
+                } else {
+                    stationsInfo.innerHTML = `
+                        <div class="text-warning">
+                            <small>⚠️ No LLRP stations assigned to timing points. 
+                            <a href="/races" class="text-warning" style="text-decoration: underline;">Configure timing points</a></small>
+                        </div>
+                    `;
+                }
+
+                // Auto-restore LLRP timing state if it was enabled
+                if (race.llrp_enabled) {
+                    console.log('LLRP was enabled for this race, restoring state...');
+                    try {
+                        // Start LLRP timing
+                        await window.RaceTimingApp.API.startLLRP(raceId);
+                        // Update UI to reflect enabled state
+                        document.getElementById('llrp-start-btn').style.display = 'none';
+                        document.getElementById('llrp-stop-btn').style.display = 'block';
+                        document.getElementById('llrp-status').innerHTML = '<span class="badge badge-success">Timing Enabled</span>';
+                        console.log('LLRP timing restored successfully');
+                    } catch (error) {
+                        console.error('Failed to restore LLRP timing:', error);
+                        window.RaceTimingApp.showAlert('Failed to restore LLRP timing: ' + error.message, 'warning');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading race info:', error);
+            }
+        }
+
+        function updateStartTimeDisplay(startTime, finishTime) {
+            console.log('updateStartTimeDisplay called with:', startTime, finishTime);
+            const display = document.getElementById('start-time-display');
+            const startBtn = document.getElementById('start-race-btn');
+            const stopBtn = document.getElementById('stop-race-btn');
+            const resetBtn = document.getElementById('reset-race-btn');
+
+            if (finishTime) {
+                // Race Finished
+                const date = new Date(startTime);
+                const finishDate = new Date(finishTime);
+                display.innerHTML = `${date.toLocaleTimeString()} <br><span class="badge badge-danger">Finished: ${finishDate.toLocaleTimeString()}</span>`;
+
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'none';
+                resetBtn.style.display = 'block';
+            } else if (startTime) {
+                // Race Started
+                const date = new Date(startTime);
+                display.textContent = date.toLocaleTimeString();
+
+                startBtn.textContent = 'Restart Race';
+                startBtn.style.display = 'block';
+                if (!startBtn.classList.contains('btn-warning')) {
+                    startBtn.classList.remove('btn-primary');
+                    startBtn.classList.add('btn-warning');
+                }
+
+                stopBtn.style.display = 'block';
+                resetBtn.style.display = 'block';
+            } else {
+                // Not Started
+                display.textContent = 'Not Started';
+
+                startBtn.textContent = 'Start Race Now';
+                startBtn.style.display = 'block';
+                if (!startBtn.classList.contains('btn-primary')) {
+                    startBtn.classList.remove('btn-warning');
+                    startBtn.classList.add('btn-primary');
+                }
+
+                stopBtn.style.display = 'none';
+                resetBtn.style.display = 'none';
+            }
+        }
+
+        async function stopRace() {
+            if (!confirm('Are you sure you want to STOP the race? This will mark the race as finished and stop timing.')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/races/${raceId}/stop`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to stop race');
+                const data = await res.json();
+
+                window.RaceTimingApp.showAlert('Race stopped successfully', 'success');
+                await loadRaceInfo();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error stopping race: ' + error.message, 'danger');
+            }
+        }
+
+        async function resetRace() {
+            if (!confirm('⚠️ DANGER: RESET RACE?\n\nThis will DELETE ALL RESULTS and time records for this race.\n\nAre you sure you want to proceed?')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/races/${raceId}/reset`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to reset race');
+
+                window.RaceTimingApp.showAlert('Race reset successfully', 'success');
+                await loadRaceInfo();
+                refreshResults();
+                refreshTimeRecords();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error resetting race: ' + error.message, 'danger');
+            }
+        }
+
+        async function startRace() {
+            console.log('startRace called, raceId:', raceId);
+            const btn = document.getElementById('start-race-btn');
+            const isRestart = btn.textContent.includes('Restart');
+            const message = isRestart
+                ? 'Are you sure you want to RESTART the race? This will update the start time to NOW.'
+                : 'Are you sure you want to start the race? This will set the start time to NOW.';
+
+            if (!confirm(message)) {
+                console.log('User cancelled confirmation');
+                return;
+            }
+
+            console.log('Making API call to start race...');
+            try {
+                const res = await window.RaceTimingApp.API.startRace(raceId);
+                console.log('API response:', res);
+                window.RaceTimingApp.showAlert(isRestart ? 'Race restarted!' : 'Race started!', 'success');
+
+                // Reload race info and refresh results to show updated status
+                await loadRaceInfo();
+                await refreshResults();
+                await refreshTimeRecords();
+            } catch (error) {
+                console.error('Error starting race:', error);
+                window.RaceTimingApp.showAlert('Error starting race: ' + error.message, 'danger');
+            }
+        }
+
+        function showEditStartTime() {
+            const modal = document.getElementById('edit-start-time-modal');
+            modal.style.display = 'block';
+
+            // Set current time as default
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('edit-start-time-input').value = now.toISOString().slice(0, 19);
+        }
+
+        function closeEditStartTime() {
+            document.getElementById('edit-start-time-modal').style.display = 'none';
+        }
+
+        async function updateStartTime(event) {
+            event.preventDefault();
+            const input = document.getElementById('edit-start-time-input');
+            const startTime = new Date(input.value).toISOString();
+
+            try {
+                const res = await window.RaceTimingApp.API.updateRaceStartTime(raceId, startTime);
+                updateStartTimeDisplay(res.start_time);
+                closeEditStartTime();
+                window.RaceTimingApp.showAlert('Start time updated', 'success');
+                await loadRaceInfo(); // Reload race info
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error updating start time: ' + error.message, 'danger');
+            }
+        }
+
+        async function startLLRP() {
+            try {
+                await window.RaceTimingApp.API.startLLRP(raceId);
+                document.getElementById('llrp-start-btn').style.display = 'none';
+                document.getElementById('llrp-stop-btn').style.display = 'block';
+                document.getElementById('llrp-status').innerHTML = '<span class="badge badge-success">Timing Enabled</span>';
+                window.RaceTimingApp.showAlert('LLRP timing enabled', 'success');
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error enabling LLRP: ' + error.message, 'danger');
+            }
+        }
+
+        async function stopLLRP() {
+            try {
+                await window.RaceTimingApp.API.stopLLRP(raceId);
+                document.getElementById('llrp-start-btn').style.display = 'block';
+                document.getElementById('llrp-stop-btn').style.display = 'none';
+                document.getElementById('llrp-status').innerHTML = '<span class="badge badge-secondary">Timing Disabled</span>';
+                window.RaceTimingApp.showAlert('LLRP timing disabled', 'success');
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error stopping LLRP: ' + error.message, 'danger');
+            }
+        }
+
+        async function recordTime(event) {
+            event.preventDefault();
+            const bibNumber = parseInt(document.getElementById('manual-bib').value);
+            const timingPoint = document.getElementById('manual-point').value;
+
+            try {
+                await window.RaceTimingApp.API.recordTime(raceId, {
+                    bib_number: bibNumber,
+                    timing_point: timingPoint,
+                    timestamp: new Date().toISOString()
+                });
+                window.RaceTimingApp.showAlert(`Time recorded for bib ${bibNumber} at ${timingPoint}`, 'success');
+                document.getElementById('manual-bib').value = '';
+                refreshResults();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error recording time: ' + error.message, 'danger');
+            }
+        }
+
+        async function markStatus(status) {
+            const bibNumber = prompt('Enter bib number:');
+            if (!bibNumber) return;
+
+            try {
+                if (status === 'dnf') {
+                    await window.RaceTimingApp.API.markDNF(raceId, parseInt(bibNumber));
+                    window.RaceTimingApp.showAlert(`Bib ${bibNumber} marked as DNF`, 'warning');
+                } else if (status === 'dns') {
+                    await window.RaceTimingApp.API.markDNS(raceId, parseInt(bibNumber));
+                    window.RaceTimingApp.showAlert(`Bib ${bibNumber} marked as DNS`, 'warning');
+                }
+                refreshResults();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteResult(resultId) {
+            if (!confirm('Are you sure you want to delete this result?')) return;
+
+            try {
+                const response = await fetch(`/api/results/${resultId}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Failed to delete');
+                window.RaceTimingApp.showAlert('Result deleted', 'success');
+                refreshResults();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting result: ' + error.message, 'danger');
+            }
+        }
+
+        function editResult(result) {
+            const modal = document.getElementById('edit-result-modal');
+            const content = document.getElementById('edit-result-content');
+
+            // Parse split times
+            let splits = {};
+            try {
+                if (result.split_times) {
+                    splits = typeof result.split_times === 'string'
+                        ? JSON.parse(result.split_times)
+                        : result.split_times;
+                }
+            } catch (e) {
+                console.error('Error parsing split times:', e);
+            }
+
+            // Build checkpoint inputs
+            let checkpointInputs = '';
+            if (timingPoints && timingPoints.length > 0) {
+                checkpointInputs = '<div class="form-group"><label class="form-label">Checkpoint Times</label>';
+                timingPoints.forEach(tp => {
+                    const currentTime = splits[tp.name] || '';
+                    // Convert ISO string to datetime-local format if present
+                    let formattedTime = '';
+                    if (currentTime) {
+                        try {
+                            const date = new Date(currentTime);
+                            formattedTime = date.toISOString().slice(0, 16);
+                        } catch (e) {
+                            formattedTime = '';
+                        }
+                    }
+
+                    checkpointInputs += `
+                        <div class="mb-2">
+                            <label class="form-label" style="font-size: 0.9rem;">${tp.name}</label>
+                            <input type="datetime-local" 
+                                   class="form-control checkpoint-time" 
+                                   data-checkpoint="${tp.name}" 
+                                   value="${formattedTime}"
+                                   step="1">
+                        </div>
+                    `;
+                });
+                checkpointInputs += '</div>';
+            }
+
+            content.innerHTML = `
+                <form onsubmit="saveEditResult(event, ${result.id})">
+                    <input type="hidden" id="edit-result-id" value="${result.id}">
+                    <div class="form-group">
+                        <label class="form-label">Participant: ${result.participant.name}</label>
+                        <p>Bib #${result.bib_number}</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select id="edit-status" class="form-select">
+                            <option value="registered" ${result.status === 'registered' ? 'selected' : ''}>Registered</option>
+                            <option value="started" ${result.status === 'started' ? 'selected' : ''}>Started</option>
+                            <option value="finished" ${result.status === 'finished' ? 'selected' : ''}>Finished</option>
+                            <option value="dnf" ${result.status === 'dnf' ? 'selected' : ''}>DNF</option>
+                            <option value="dns" ${result.status === 'dns' ? 'selected' : ''}>DNS</option>
+                        </select>
+                    </div>
+                    ${checkpointInputs}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">💾 Save</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeEditResult()">Cancel</button>
+                        <button type="button" class="btn btn-danger" onclick="deleteResultFromModal()">Delete</button>
+                    </div>
+                </form>
+            `;
+
+            modal.style.display = 'block';
+        }
+
+        async function deleteResultFromModal() {
+            const resultId = document.getElementById('edit-result-id').value;
+            if (!confirm('Are you sure you want to delete this result?')) return;
+
+            try {
+                const response = await fetch(`/api/results/${resultId}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Failed to delete');
+                window.RaceTimingApp.showAlert('Result deleted', 'success');
+                closeEditResult();
+                refreshResults();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting result: ' + error.message, 'danger');
+            }
+        }
+
+        function closeEditResult() {
+            document.getElementById('edit-result-modal').style.display = 'none';
+        }
+
+        async function saveEditResult(event, resultId) {
+            event.preventDefault();
+            const status = document.getElementById('edit-status').value;
+
+            try {
+                const response = await fetch(`/api/results/${resultId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+
+                if (!response.ok) throw new Error('Failed to update');
+                window.RaceTimingApp.showAlert('Result updated', 'success');
+                closeEditResult();
+                refreshResults();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error updating result: ' + error.message, 'danger');
+            }
+        }
+
+        // Time Records functions
+        let timingPoints = [];
+
+        async function refreshTimeRecords() {
+            try {
+                // Fetch results first to get bib numbers
+                resultsData = await window.RaceTimingApp.API.getResults(raceId);
+
+                const records = await window.RaceTimingApp.API.getTimeRecords(raceId);
+                const tbody = document.getElementById('time-records-table');
+                tbody.innerHTML = '';
+
+                if (records.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No checkpoint reads yet</td></tr>';
+                    return;
+                }
+
+                records.forEach(r => {
+                    const tr = document.createElement('tr');
+                    const date = new Date(r.timestamp);
+                    const timeStr = date.toLocaleString();
+
+                    tr.innerHTML = `
+                        <td><strong>#${getBibNumber(r.participant.id)}</strong></td>
+                        <td>${r.participant.name}</td>
+                        <td>${r.timing_point.name}</td>
+                        <td>${timeStr}</td>
+                        <td><span class="badge badge-${r.source === 'llrp' ? 'primary' : 'secondary'}">${r.source.toUpperCase()}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick='editTimeRecord(${JSON.stringify(r)})'>Edit</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading time records:', error);
+            }
+        }
+
+        // Store results data for bib lookup
+        let resultsData = [];
+
+        function getBibNumber(participantId) {
+            // Find participant in results data
+            const result = resultsData.find(r => r.participant.id === participantId);
+            return result ? result.bib_number : '?';
+        }
+
+        function editTimeRecord(record) {
+            const modal = document.getElementById('edit-time-record-modal');
+            document.getElementById('edit-record-id').value = record.id;
+            document.getElementById('edit-record-participant').textContent = record.participant.name;
+
+            // Populate timing points dropdown
+            const select = document.getElementById('edit-record-timing-point');
+            select.innerHTML = '';
+            timingPoints.forEach(tp => {
+                const option = document.createElement('option');
+                option.value = tp.id;
+                option.textContent = tp.name;
+                option.selected = tp.id === record.timing_point.id;
+                select.appendChild(option);
+            });
+
+            // Set timestamp
+            const date = new Date(record.timestamp);
+            date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+            document.getElementById('edit-record-timestamp').value = date.toISOString().slice(0, 19);
+
+            modal.style.display = 'block';
+        }
+
+        function closeEditTimeRecord() {
+            document.getElementById('edit-time-record-modal').style.display = 'none';
+        }
+
+        async function saveEditTimeRecord(event) {
+            event.preventDefault();
+            const recordId = document.getElementById('edit-record-id').value;
+            const timingPointId = parseInt(document.getElementById('edit-record-timing-point').value);
+            const timestamp = new Date(document.getElementById('edit-record-timestamp').value).toISOString();
+
+            try {
+                await window.RaceTimingApp.API.updateTimeRecord(recordId, {
+                    timing_point_id: timingPointId,
+                    timestamp: timestamp
+                });
+                window.RaceTimingApp.showAlert('Time record updated', 'success');
+                closeEditTimeRecord();
+                refreshTimeRecords();
+                refreshResults(); // Refresh results as they may have changed
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error updating time record: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteTimeRecordFromModal() {
+            const recordId = document.getElementById('edit-record-id').value;
+            console.log('deleteTimeRecordFromModal called, recordId:', recordId);
+            /*
+            if (!confirm('⚠️ DELETE CHECKPOINT READ?\n\nThis will permanently delete this time record.\n\nClick OK to DELETE, or Cancel to keep it.')) {
+              console.log('User cancelled deletion');
+                return;
+            }
+            */
+            console.log('Attempting to delete record:', recordId);
+            try {
+                await window.RaceTimingApp.API.deleteTimeRecord(recordId);
+                console.log('Delete successful');
+                window.RaceTimingApp.showAlert('Time record deleted', 'success');
+                closeEditTimeRecord();
+                refreshTimeRecords();
+                refreshResults(); // Refresh results as they may have changed
+            } catch (error) {
+                console.error('Delete error:', error);
+                window.RaceTimingApp.showAlert('Error deleting time record: ' + error.message, 'danger');
+            }
+        }
+
+
+        async function refreshResults() {
+            try {
+                const results = await window.RaceTimingApp.API.getResults(raceId);
+                const tbody = document.getElementById('results-table');
+                tbody.innerHTML = '';
+
+                if (results.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No results yet</td></tr>';
+                    updateStats(results);
+                    return;
+                }
+
+                results.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${r.rank || '-'}</td>
+                        <td><strong>#${r.bib_number}</strong></td>
+                        <td>${r.participant.name}</td>
+                        <td>${r.participant.category || '-'}</td>
+                        <td>${window.RaceTimingApp.getStatusBadge(r.participant.status || r.status)}</td>
+                        <td><strong>${window.RaceTimingApp.formatTime(r.total_time)}</strong></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick='editResult(${JSON.stringify(r)})'>Edit</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Update stats dashboard
+                updateStats(results);
+            } catch (error) {
+                console.error('Error loading results:', error);
+            }
+        }
+
+        // Update stats dashboard
+        function updateStats(results) {
+            const total = results.length;
+            const finished = results.filter(r => r.status === 'finished').length;
+            const started = results.filter(r => r.status === 'started').length;
+            const registered = results.filter(r => r.status === 'registered').length;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-finished').textContent = finished;
+            document.getElementById('stat-started').textContent = started;
+            document.getElementById('stat-registered').textContent = registered;
+        }
+
+        // Recalculate all results
+        async function recalculateResults() {
+            if (!confirm('Recalculate all results? This will update rankings and times.')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/races/${raceId}/recalculate`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to recalculate');
+
+                window.RaceTimingApp.showAlert('Results recalculated successfully', 'success');
+                refreshResults();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error recalculating results: ' + error.message, 'danger');
+            }
+        }
+
+        // Export results to CSV
+        async function exportResults() {
+            try {
+                const results = await window.RaceTimingApp.API.getResults(raceId);
+                if (results.length === 0) {
+                    window.RaceTimingApp.showAlert('No results to export', 'warning');
+                    return;
+                }
+
+                // Create CSV content
+                const headers = ['Rank', 'Bib', 'Name', 'Category', 'Status', 'Time'];
+                const rows = results.map(r => [
+                    r.rank || '',
+                    r.bib_number,
+                    r.participant.name,
+                    r.participant.category || '',
+                    r.status,
+                    window.RaceTimingApp.formatTime(r.total_time)
+                ]);
+
+                const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+
+                // Download CSV
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `race_${raceId}_results.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+
+                window.RaceTimingApp.showAlert('Results exported successfully', 'success');
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error exporting results: ' + error.message, 'danger');
+            }
+        }
+
+        async function publishResults() {
+            if (!confirm('Publish current results to the public site?\n\nThis will make the results visible to the public.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/races/${raceId}/publish`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to publish results');
+                }
+
+                const data = await response.json();
+                window.RaceTimingApp.showAlert(
+                    `✅ Published ${data.result_count} results successfully!\n\nPublic URL: http://localhost:5002/race/${raceId}`,
+                    'success'
+                );
+            } catch (error) {
+                window.RaceTimingApp.showAlert(
+                    'Error publishing results: ' + error.message,
+                    'danger'
+                );
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRaceSelector();
+            loadRaceInfo();
+            refreshResults();
+            refreshTimeRecords();
+
+            // Auto-refresh every 5 seconds
+            refreshInterval = setInterval(() => {
+                refreshResults();
+                refreshTimeRecords();
+            }, 5000);
+        });
+    </script>
+</body>
+
+</html>

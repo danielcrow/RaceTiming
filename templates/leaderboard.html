@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Leaderboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .leaderboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .leaderboard-header {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .race-title {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .race-subtitle {
+            font-size: 1.25rem;
+            color: var(--gray-600);
+        }
+
+        .leaderboard-row {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .leaderboard-row:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .leaderboard-rank {
+            font-size: 2.5rem;
+            font-weight: 700;
+            width: 100px;
+            text-align: center;
+            color: var(--gray-400);
+        }
+
+        .leaderboard-rank.rank-1 {
+            color: #fbbf24;
+            font-size: 3rem;
+        }
+
+        .leaderboard-rank.rank-2 {
+            color: #9ca3af;
+            font-size: 2.75rem;
+        }
+
+        .leaderboard-rank.rank-3 {
+            color: #cd7f32;
+            font-size: 2.5rem;
+        }
+
+        .leaderboard-bib {
+            background: var(--primary);
+            color: white;
+            font-weight: 700;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            margin-right: 1.5rem;
+            font-size: 1.25rem;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .leaderboard-info {
+            flex: 1;
+        }
+
+        .leaderboard-name {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.25rem;
+        }
+
+        .leaderboard-category {
+            font-size: 1rem;
+            color: var(--gray-600);
+        }
+
+        .leaderboard-checkpoint {
+            font-size: 0.875rem;
+            color: var(--gray-500);
+            margin-top: 0.25rem;
+            font-style: italic;
+        }
+
+        .leaderboard-time {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: var(--primary);
+            min-width: 200px;
+            text-align: right;
+        }
+
+        .leaderboard-time-label {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            font-weight: 400;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .update-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .pulse {
+            width: 12px;
+            height: 12px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .fullscreen-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .fullscreen-btn:hover {
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .race-title {
+                font-size: 2rem;
+            }
+
+            .leaderboard-rank {
+                font-size: 1.5rem;
+                width: 60px;
+            }
+
+            .leaderboard-name {
+                font-size: 1.25rem;
+            }
+
+            .leaderboard-time {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="update-indicator">
+        <div class="pulse"></div>
+        <span>Live Updates</span>
+    </div>
+
+    <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
+
+    <div class="leaderboard-container">
+        <div class="leaderboard-header">
+            <div class="race-title" id="race-name">Loading...</div>
+            <div class="race-subtitle" id="race-info"></div>
+
+            <!-- Filter Controls -->
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                <div>
+                    <label for="gender-filter" style="font-weight: 600; margin-right: 0.5rem;">Gender:</label>
+                    <select id="gender-filter" class="form-select" style="display: inline-block; width: auto;"
+                        onchange="updateLeaderboard()">
+                        <option value="">All</option>
+                        <option value="M">Open</option>
+                        <option value="F">Female</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="age-group-filter" style="font-weight: 600; margin-right: 0.5rem;">Age Group:</label>
+                    <select id="age-group-filter" class="form-select" style="display: inline-block; width: auto;"
+                        onchange="updateLeaderboard()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="leaderboard">
+            <div class="text-center" style="color: white; font-size: 1.5rem; padding: 3rem;">
+                <div class="spinner" style="border-color: white; border-top-color: var(--primary);"></div>
+                <p>Loading leaderboard...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Access all functions directly from window.RaceTimingApp to avoid duplicate declarations
+        const raceId = {{ race_id }};
+        let updateInterval;
+
+        async function loadRaceInfo() {
+            try {
+                const race = await window.RaceTimingApp.API.getRace(raceId);
+                document.getElementById('race-name').textContent = race.name;
+                document.getElementById('race-info').textContent =
+                    `${window.RaceTimingApp.getRaceTypeIcon(race.race_type)} ${race.race_type.toUpperCase()} • ${window.RaceTimingApp.formatDate(race.date)} • ${race.location || ''}`;
+
+                // Populate age groups
+                if (race.age_groups && race.age_groups.length > 0) {
+                    const ageGroupSelect = document.getElementById('age-group-filter');
+                    race.age_groups.forEach(ag => {
+                        const option = document.createElement('option');
+                        // ag is an object {name, min, max}, we want the name
+                        const name = typeof ag === 'object' ? ag.name : ag;
+                        option.value = name;
+                        option.textContent = name;
+                        ageGroupSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading race info:', error);
+            }
+        }
+
+        async function updateLeaderboard() {
+            try {
+                const gender = document.getElementById('gender-filter').value;
+                const ageGroup = document.getElementById('age-group-filter').value;
+
+                // Build query params
+                const params = new URLSearchParams();
+                params.append('limit', '50');
+                if (gender) params.append('gender', gender);
+                if (ageGroup) params.append('age_group', ageGroup);
+
+                const response = await fetch(`/api/races/${raceId}/leaderboard?${params}`);
+                const results = await response.json();
+
+                const container = document.getElementById('leaderboard');
+
+                if (results.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: white; font-size: 1.5rem; padding: 3rem;">
+                            <p>No participants yet. Waiting for results...</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = '';
+
+                results.forEach((result, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'leaderboard-row';
+                    row.style.animationDelay = `${index * 0.05}s`;
+
+                    const rankClass = result.rank <= 3 ? `rank-${result.rank}` : '';
+
+                    // Status badge for active participants
+                    const statusBadge = result.status === 'started'
+                        ? '<span class="badge badge-primary" style="margin-left: 0.5rem;">ON COURSE</span>'
+                        : '';
+
+                    // Checkpoint info for active participants
+                    let checkpointInfo = '';
+                    if (result.status === 'started' && result.last_checkpoint_name) {
+                        const cpTime = new Date(result.last_checkpoint_time);
+                        checkpointInfo = `<div class="leaderboard-checkpoint">Last: ${result.last_checkpoint_name} @ ${cpTime.toLocaleTimeString()}</div>`;
+                    }
+
+                    // Time display
+                    let timeDisplay = '';
+                    if (result.status === 'finished') {
+                        timeDisplay = `
+                            <span class="leaderboard-time-label">FINISH TIME</span>
+                            <div>${result.total_time_formatted}</div>
+                        `;
+                    } else if (result.status === 'started') {
+                        timeDisplay = `
+                            <span class="leaderboard-time-label">CURRENT TIME</span>
+                            <div>${result.current_elapsed_formatted || 'In Progress'}</div>
+                        `;
+                    }
+
+                    // Format gender display
+                    let genderDisplay = '';
+                    if (result.gender) {
+                        if (result.gender === 'M') genderDisplay = 'Open';
+                        else if (result.gender === 'F') genderDisplay = 'Female';
+                        else genderDisplay = result.gender;
+                    }
+
+                    row.innerHTML = `
+                        <div class="leaderboard-rank ${rankClass}">${result.rank}</div>
+                        <div class="leaderboard-bib">#${result.bib_number}</div>
+                        <div class="leaderboard-info">
+                            <div class="leaderboard-name">${result.name}${statusBadge}</div>
+                            <div class="leaderboard-category">${result.category}${genderDisplay ? ' • ' + genderDisplay : ''}</div>
+                            ${checkpointInfo}
+                        </div>
+                        <div class="leaderboard-time">${timeDisplay}</div>
+                    `;
+
+                    container.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error updating leaderboard:', error);
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Initial load
+        loadRaceInfo();
+        updateLeaderboard();
+
+        // Auto-refresh every 5 seconds
+        updateInterval = setInterval(updateLeaderboard, 5000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(updateInterval);
+        });
+    </script>
+</body>
+
+</html>
