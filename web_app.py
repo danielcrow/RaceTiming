@@ -2217,11 +2217,12 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
+    results_url = get_config_manager().get('results_publish_url', 'http://localhost:5002')
     print("="*60)
     print("Race Timing System Starting")
     print("="*60)
     print(f"Main timing system: http://localhost:5001")
-    print(f"Results publishing site: {RESULTS_PUBLISH_URL}")
+    print(f"Results publishing site: {results_url}")
     print("="*60)
     
     app.run(host='0.0.0.0', port=5001, debug=True, use_reloader=False)

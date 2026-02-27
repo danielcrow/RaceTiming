@@ -11,6 +11,11 @@ build/
 dist/
 *.egg-info/
 
+# PyInstaller
+*.spec.bak
+__pycache__/
+.venv/
+
 # Database
 *.db
 *.db-journal
