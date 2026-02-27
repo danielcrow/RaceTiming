@@ -302,7 +302,7 @@ def webhook_publish_results():
             result = PublishedResult(
                 race_id=race.id,
                 bib_number=result_data.get('bib_number'),
-                participant_name=result_data['participant_name'],
+                participant_name=result_data.get('participant_name', 'Unknown'),
                 gender=result_data.get('gender'),
                 age=result_data.get('age'),
                 category=result_data.get('category'),

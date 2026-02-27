@@ -1769,9 +1769,6 @@ def format_time(seconds):
 # RESULTS PUBLISHING ENDPOINTS
 # ============================================================================
 
-# Publishing configuration - Google Cloud Run deployment
-RESULTS_PUBLISH_URL = os.getenv('RESULTS_PUBLISH_URL', 'https://race-results-822841788362.us-central1.run.app')
-
 @app.route('/api/races/<int:race_id>/publish', methods=['POST'])
 def publish_race_results(race_id):
     """Publish race results to the public results site"""
@@ -1784,7 +1781,6 @@ def publish_race_results(race_id):
     
     try:
         publisher = ResultsPublisher()
-        print(publisher.results_site_url)
         # Test connection first
         if not publisher.test_connection():
             return jsonify({
@@ -1816,6 +1812,7 @@ def publish_race_results(race_id):
 @app.route('/api/events/<int:event_id>/publish', methods=['POST'])
 def publish_event_results(event_id):
     """Publish all races in an event"""
+    from results_publisher import ResultsPublisher
     session = get_session()
     try:
         from models import Event
@@ -1829,15 +1826,11 @@ def publish_event_results(event_id):
         
         for race in event.races:
             try:
-                # Call the publish endpoint for each race
-                response = requests.post(
-                    f'http://localhost:5001/api/races/{race.id}/publish',
-                    timeout=10
-                )
-                if response.ok:
+                publisher = ResultsPublisher()
+                if publisher.publish_results(race.id, publish_type='manual', published_by='admin'):
                     published_count += 1
                 else:
-                    errors.append(f"Race {race.name}: {response.json().get('error', 'Unknown error')}")
+                    errors.append(f"Race {race.name}: publish_results returned False")
             except Exception as e:
                 errors.append(f"Race {race.name}: {str(e)}")
         
@@ -1850,6 +1843,8 @@ def publish_event_results(event_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
 
 
 @app.route('/api/races/<int:race_id>/qrcode')
@@ -1866,7 +1861,7 @@ def race_qrcode(race_id):
             return jsonify({'error': 'Race not found'}), 404
         
         # Generate URL for public results
-        public_url = f"{RESULTS_PUBLISH_URL}/race/{race_id}"
+        public_url = f"{get_config_manager().get('results_publish_url', 'http://localhost:5002')}/race/{race_id}"
         
         # Create QR code
         qr = qrcode.QRCode(
@@ -1908,7 +1903,7 @@ def event_qrcode(event_id):
             return jsonify({'error': 'Event not found'}), 404
         
         # Generate URL for public results
-        public_url = f"{RESULTS_PUBLISH_URL}/event/{event_id}"
+        public_url = f"{get_config_manager().get('results_publish_url', 'http://localhost:5002')}/event/{event_id}"
         
         # Create QR code
         qr = qrcode.QRCode(
@@ -2101,7 +2096,7 @@ def check_database_configured():
         )
         conn.close()
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -2198,8 +2193,6 @@ def setup_status():
             'setup_required': not db_configured
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
         return jsonify({'error': str(e)}), 500
 
 # ============================================================================
