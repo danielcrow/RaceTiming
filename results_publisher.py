@@ -7,14 +7,16 @@ from datetime import datetime
 from database import get_session
 from models import Race, Event
 from race_control import RaceControl
+from config_manager import get_config_manager
 
 
 class ResultsPublisher:
     """Publishes race results to the public results site"""
     
     def __init__(self):
-        self.results_site_url = os.getenv('RESULTS_PUBLISH_URL', 'http://localhost:5002')
-        self.webhook_secret = os.getenv('WEBHOOK_SECRET', 'change-this-secret-key')
+        config = get_config_manager()
+        self.results_site_url = config.get('results_publish_url', 'http://localhost:5002')
+        self.webhook_secret = config.get('webhook_secret', 'change-this-secret-key')
     
     def _make_webhook_request(self, endpoint, data):
         """Make an authenticated webhook request"""

@@ -1823,10 +1823,11 @@ def publish_event_results(event_id):
         
         published_count = 0
         errors = []
+        race_count = len(event.races)
+        publisher = ResultsPublisher()
         
         for race in event.races:
             try:
-                publisher = ResultsPublisher()
                 if publisher.publish_results(race.id, publish_type='manual', published_by='admin'):
                     published_count += 1
                 else:
@@ -1834,9 +1835,17 @@ def publish_event_results(event_id):
             except Exception as e:
                 errors.append(f"Race {race.name}: {str(e)}")
         
+        if published_count == 0 and errors:
+            return jsonify({
+                'success': False,
+                'message': f'Published {published_count} of {race_count} races',
+                'races_published': published_count,
+                'errors': errors
+            }), 500
+        
         return jsonify({
             'success': True,
-            'message': f'Published {published_count} of {len(event.races)} races',
+            'message': f'Published {published_count} of {race_count} races',
             'races_published': published_count,
             'errors': errors if errors else None
         })
