@@ -5,13 +5,23 @@ A comprehensive race management and timing system for multi-sport events includi
 ## Features
 
 - **Multiple Race Types**: Support for Triathlon, Duathlon, Aquathlon, Running, and Cycling
+- **Event Management**: Organize multiple races within events
+- **Master Event Control**: Unified interface for managing all races in an event
+  - Record times for any race from a single interface
+  - Start, stop, edit, and reset races
+  - Live monitoring of all checkpoint reads across races
+  - Real-time time editing and correction
 - **Participant Management**: Register and manage participants with RFID tag support
-- **Dual Timing Methods**: 
+- **Advanced LLRP Timing**:
   - Automatic timing via LLRP RFID readers
-  - Manual time entry
+  - Three detection modes: First Seen, Last Seen, and Peak RSSI (quadratic regression)
+  - Configurable per timing point for optimal accuracy
+  - Manual time entry fallback
 - **Real-time Results**: Live race standings and rankings
 - **Comprehensive Reporting**: Generate results in Text, CSV, and HTML formats
-- **Database Persistence**: All data stored in SQLite database
+- **Database Persistence**: All data stored in SQLite/PostgreSQL database
+- **Web Interface**: Full-featured web UI for race management and control
+- **Results Publishing**: Webhook-based public results website with real-time updates
 
 ## Installation
 
@@ -157,6 +167,27 @@ python cli.py report html <race-id> --output <file>  # HTML report
 The system supports automatic timing via LLRP RFID readers. When a participant with an assigned RFID tag crosses a timing mat, their time is automatically recorded.
 
 **Setup**:
+### Tag Detection Modes
+
+The system supports three advanced tag detection modes for optimal timing accuracy:
+
+1. **First Seen** (Default) - Records the first detection timestamp
+   - Best for: Start lines, high-speed passages
+   - Latency: Immediate (no buffering)
+
+2. **Last Seen** - Records the last detection within a time window
+   - Best for: Finish lines, areas where participants may linger
+   - Latency: Equal to detection window (default 3 seconds)
+
+3. **Peak RSSI (Quadratic Regression)** - Calculates when signal was strongest
+   - Best for: High-precision timing, professional races
+   - Uses mathematical regression to find optimal crossing time
+   - Latency: Equal to detection window (default 3 seconds)
+
+**Configuration**: Detection modes can be set per timing point via the web interface or programmatically. See `TAG_DETECTION_MODES.md` for detailed documentation.
+
+**Migration**: Run `python migrate_detection_modes.py` to add detection mode support to existing databases.
+
 1. Assign RFID tags to participants using `participant set-rfid`
 2. Connect LLRP reader to your network
 3. Start race control with `--llrp-host <reader-ip>`
@@ -200,6 +231,31 @@ python cli.py report text 1
 python cli.py report html 1 --output sprint_tri_results.html
 ```
 
+## Results Publishing
+
+The system includes a webhook-based results publishing feature that allows you to publish race results to a separate public-facing website.
+
+### Setup Results Publishing
+
+1. **Configure environment variables** in `.env`:
+   ```bash
+   RESULTS_PUBLISH_URL=http://localhost:5002
+   WEBHOOK_SECRET=your-secret-key-here
+   ```
+
+2. **Start the results site** (in a separate terminal):
+   ```bash
+   cd results_site
+   python app.py
+   ```
+
+3. **Publish results** from the main web interface or via API:
+   - The results site receives updates via webhooks
+   - Results are stored in a local database for fast access
+   - Supports real-time updates via Server-Sent Events (SSE)
+
+See `results_site/README.md` for deployment instructions.
+
 ## Development
 
 ### Project Structure
@@ -212,9 +268,16 @@ RaceTiming/
 ├── race_manager.py         # Race and participant management
 ├── race_control.py         # Live timing control
 ├── report_generator.py     # Report generation
+├── results_publisher.py    # Webhook-based results publishing
 ├── reader.py               # LLRP reader client
+├── web_app.py              # Flask web application
 ├── requirements.txt        # Python dependencies
-└── race_timing.db          # SQLite database (created on init)
+├── race_timing.db          # SQLite database (created on init)
+└── results_site/           # Public results website
+    ├── app.py              # Results site Flask app
+    ├── results_models.py   # Results database models
+    ├── results_database.py # Results database setup
+    └── templates/          # Results site templates
 ```
 
 ### Running Tests
@@ -244,6 +307,12 @@ python cli.py control start 1
 - Verify RFID tags are assigned to participants
 - Check reader antenna configuration
 - Ensure tags are in reader range
+
+## Additional Documentation
+
+- **[Master Control Guide](MASTER_CONTROL_GUIDE.md)** - Comprehensive guide for the unified event timing control interface
+- **[Tag Detection Modes](TAG_DETECTION_MODES.md)** - Detailed documentation on LLRP tag detection modes
+- **[Configuration Guide](CONFIGURATION_GUIDE.md)** - System configuration and setup instructions
 
 ## License
 

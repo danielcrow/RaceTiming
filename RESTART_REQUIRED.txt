@@ -1,0 +1,23 @@
+IMPORTANT: Flask Application Restart Required
+===============================================
+
+The master control feature has been added, but Flask needs to be restarted to load the new route.
+
+To restart the application:
+
+1. Stop the current Flask server (Ctrl+C in the terminal where it's running)
+
+2. Start it again:
+   python web_app.py
+
+3. Then access the master control at:
+   http://127.0.0.1:5001/event/2/master-control
+
+The route is correctly defined at line 133-136 in web_app.py:
+
+@app.route('/event/<int:event_id>/master-control')
+def event_master_control_page(event_id):
+    """Master event timing control page"""
+    return render_template('event_master_control.html', event_id=event_id)
+
+After restarting, the master control interface will be fully functional.

@@ -2,14 +2,13 @@
 Database models for Results Publishing Site
 """
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
 Base = declarative_base()
 
 
-class PublishedEvent(Base):
+class PublishedEvent(Base):  # type: ignore[misc]
     """Published event for public viewing"""
     __tablename__ = 'published_events'
     
@@ -30,7 +29,7 @@ class PublishedEvent(Base):
         return f"<PublishedEvent(id={self.id}, name='{self.name}')>"
 
 
-class PublishedRace(Base):
+class PublishedRace(Base):  # type: ignore[misc]
     """Published race for public viewing"""
     __tablename__ = 'published_races'
     
@@ -55,7 +54,7 @@ class PublishedRace(Base):
         return f"<PublishedRace(id={self.id}, name='{self.name}')>"
 
 
-class PublishedResult(Base):
+class PublishedResult(Base):  # type: ignore[misc]
     """Published race result for public viewing"""
     __tablename__ = 'published_results'
     
@@ -82,7 +81,7 @@ class PublishedResult(Base):
         return f"<PublishedResult(id={self.id}, name='{self.participant_name}', rank={self.overall_rank})>"
 
 
-class PublishingLog(Base):
+class PublishingLog(Base):  # type: ignore[misc]
     """Log of publishing actions"""
     __tablename__ = 'publishing_log'
     

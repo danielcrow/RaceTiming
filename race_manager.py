@@ -141,8 +141,18 @@ class RaceManager:
         self.session.commit()
         return leg
     
-    def add_timing_point(self, race_id, name, order, is_start=False, is_finish=False, leg_id=None, llrp_station_id=None):
+    def add_timing_point(self, race_id, name, order, is_start=False, is_finish=False, leg_id=None,
+                        llrp_station_id=None, detection_mode="first_seen", detection_window_seconds=3):
         """Add a timing point to a race"""
+        from models import TagDetectionMode
+        
+        # Convert string to enum if needed
+        if isinstance(detection_mode, str):
+            try:
+                detection_mode = TagDetectionMode(detection_mode)
+            except ValueError:
+                detection_mode = TagDetectionMode.FIRST_SEEN
+        
         timing_point = TimingPoint(
             race_id=race_id,
             name=name,
@@ -150,7 +160,9 @@ class RaceManager:
             is_start=is_start,
             is_finish=is_finish,
             leg_id=leg_id,
-            llrp_station_id=llrp_station_id
+            llrp_station_id=llrp_station_id,
+            detection_mode=detection_mode,
+            detection_window_seconds=detection_window_seconds
         )
         
         self.session.add(timing_point)

@@ -7,6 +7,7 @@ from models import TimeRecord, RaceResult, TimingSource, ParticipantStatus, race
 from database import get_session
 from race_manager import RaceManager, ParticipantManager
 from reader import LLRPReader
+from tag_detection import TagDetectionManager
 import json
 from sqlalchemy import and_
 
@@ -18,12 +19,41 @@ class RaceControl:
         self.race_id = race_id
         self.active = False
         
+        # Initialize tag detection manager
+        self.tag_detection_manager = TagDetectionManager()
+        self._configure_detection_modes()
+        
         # Verify race exists
         session = get_session()
         race = session.query(Race).filter(Race.id == race_id).first()
         if not race:
             raise ValueError(f"Race {race_id} not found")
         # We don't keep the race object or session
+    
+    def _configure_detection_modes(self):
+        """Configure detection modes for all timing points in this race"""
+        session = get_session()
+        timing_points = session.query(TimingPoint).filter(
+            TimingPoint.race_id == self.race_id
+        ).all()
+        
+        for tp in timing_points:
+            # Configure each timing point with its detection mode
+            detection_mode = tp.detection_mode.value if tp.detection_mode else "first_seen"
+            window_seconds = tp.detection_window_seconds if tp.detection_window_seconds else 3.0
+            
+            # Create callback for this timing point
+            def make_callback(timing_point_id):
+                def callback(epc, timestamp, rssi, mode):
+                    print(f"Tag detection finalized: {epc} at timing point {timing_point_id} using {mode} mode (RSSI: {rssi})")
+                return callback
+            
+            self.tag_detection_manager.configure_timing_point(
+                tp.id,
+                detection_mode,
+                window_seconds,
+                make_callback(tp.id)
+            )
     
     def start_timing(self):
         """Start accepting timing events"""
@@ -42,21 +72,40 @@ class RaceControl:
         
         # MULTI-RACE SUPPORT: Filter tag reads by station assignment
         # Only process tags from LLRP stations assigned to this race's timing points
+        timing_point = None
         if station_id is not None:
             session = get_session()
             # Check if this station is assigned to any timing point in this race
-            station_assigned = session.query(TimingPoint).filter(
+            timing_point = session.query(TimingPoint).filter(
                 and_(
                     TimingPoint.race_id == self.race_id,
                     TimingPoint.llrp_station_id == station_id
                 )
             ).first()
             
-            if not station_assigned:
+            if not timing_point:
                 # This tag read is from a station not assigned to this race
                 # Silently ignore (it's likely for another race)
                 return
+        
+        # Process through detection manager if we have a timing point
+        if timing_point:
+            # Use detection manager to buffer and process the read
+            result = self.tag_detection_manager.process_tag_read(
+                timing_point.id,
+                epc,
+                rssi if rssi is not None else -50.0,  # Default RSSI if not provided
+                timestamp
+            )
             
+            # If detection is finalized, process it
+            if result:
+                final_epc, final_timestamp, final_rssi = result
+                self._process_finalized_tag(final_epc, final_timestamp, station_id, final_rssi)
+            return
+    
+    def _process_finalized_tag(self, epc, timestamp, station_id=None, rssi=None):
+        """Process a finalized tag detection (after detection mode processing)"""
         participant_manager = ParticipantManager()
         # Find participant by RFID tag
         participant = participant_manager.get_participant_by_rfid(epc)
@@ -230,6 +279,63 @@ class RaceControl:
             TimingSource.MANUAL,
             notes
         )
+    
+    def record_manual_time_auto(self, bib_number, timestamp=None, notes=None):
+        """
+        Automatically record time at the next expected timing point for a participant.
+        This is the simplified workflow - just provide bib number, system determines timing point.
+        
+        Args:
+            bib_number: Participant's bib number
+            timestamp: Optional timestamp (defaults to now)
+            notes: Optional notes
+            
+        Returns:
+            dict with success status, timing point name, and message
+        """
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        participant_manager = ParticipantManager()
+        # Find participant by bib number
+        participant = participant_manager.get_participant_by_bib(self.race_id, bib_number)
+        if not participant:
+            return {
+                'success': False,
+                'error': f"Participant with bib {bib_number} not found in this race"
+            }
+        
+        # Get the next expected timing point for this participant
+        timing_point = self._get_next_timing_point(participant.id)
+        
+        if not timing_point:
+            return {
+                'success': False,
+                'error': f"No more timing points available for bib {bib_number} (all checkpoints recorded)"
+            }
+        
+        # Record the time
+        time_record = self.record_time(
+            participant.id,
+            timing_point.id,
+            timestamp,
+            TimingSource.MANUAL,
+            notes
+        )
+        
+        if time_record:
+            return {
+                'success': True,
+                'timing_point': timing_point.name,
+                'participant_name': participant.full_name,
+                'timestamp': timestamp.isoformat(),
+                'message': f"Bib #{bib_number} recorded at {timing_point.name}"
+            }
+        else:
+            return {
+                'success': False,
+                'error': f"Failed to record time for bib {bib_number}"
+            }
     
     def calculate_results(self):
         """Recalculate results for all participants"""

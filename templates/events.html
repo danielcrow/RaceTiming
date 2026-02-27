@@ -108,13 +108,21 @@
             document.getElementById('event-form').reset();
         }
 
-        async function createEvent(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
+        async function createEvent(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
 
             try {
-                await window.RaceTimingApp.API.createEvent(data);
+                const response = await fetch('/api/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || `Server error ${response.status}`);
+                }
                 window.RaceTimingApp.showAlert('Event created successfully!', 'success');
                 hideCreateForm();
                 loadEvents();
@@ -136,12 +144,17 @@
         }
 
         async function loadEvents() {
+            const tbody = document.getElementById('events-table');
             try {
-                const events = await window.RaceTimingApp.API.getEvents();
-                const tbody = document.getElementById('events-table');
+                const response = await fetch('/api/events');
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || `Server error ${response.status}`);
+                }
+                const events = await response.json();
                 tbody.innerHTML = '';
 
-                if (events.length === 0) {
+                if (!Array.isArray(events) || events.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No events found. Create your first event!</td></tr>';
                     return;
                 }
@@ -154,6 +167,7 @@
                         <td>${event.location || '-'}</td>
                         <td><span class="badge badge-primary">${event.race_count}</span></td>
                         <td>
+                            <a href="/event/${event.id}/master-control" class="btn btn-sm btn-primary">🎛️ Master Control</a>
                             <a href="/event/${event.id}/control" class="btn btn-sm btn-success">🎮 Control</a>
                             <a href="/event/${event.id}" class="btn btn-sm btn-info">Details</a>
                             <button onclick="deleteEvent(${event.id}, '${event.name.replace(/'/g, "\\'")}')" class="btn btn-sm btn-danger">Delete</button>
@@ -163,6 +177,7 @@
                 });
             } catch (error) {
                 console.error('Error loading events:', error);
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Error loading events: ${error.message}</td></tr>`;
             }
         }
 

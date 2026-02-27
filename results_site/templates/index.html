@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Results - All Published Results</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .search-box {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .search-button {
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .search-button:hover {
+            background: #5568d3;
+        }
+        
+        .clear-button {
+            padding: 15px 30px;
+            background: #e0e0e0;
+            color: #333;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .clear-button:hover {
+            background: #d0d0d0;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .race-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+        
+        .race-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .race-name {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .race-info {
+            color: #666;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .race-info strong {
+            color: #333;
+        }
+        
+        .race-type {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #f0f0f0;
+            border-radius: 20px;
+            font-size: 0.9em;
+            color: #667eea;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        
+        .view-results {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+        
+        .view-results:hover {
+            background: #5568d3;
+        }
+        
+        .no-results {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            color: #666;
+            font-size: 1.2em;
+        }
+        
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .stats {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏁 Race Results</h1>
+            <p class="subtitle">Browse all published race results</p>
+        </header>
+        
+        <div class="search-box">
+            <form class="search-form" method="GET" action="/">
+                <input 
+                    type="text" 
+                    name="q" 
+                    class="search-input" 
+                    placeholder="Search by race name, event, or location..." 
+                    value="{{ search_query }}"
+                    autofocus
+                >
+                <button type="submit" class="search-button">🔍 Search</button>
+                {% if search_query %}
+                <a href="/" class="clear-button">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+        
+        {% if error %}
+        <div class="error-message">
+            <strong>Error:</strong> {{ error }}
+        </div>
+        {% endif %}
+        
+        {% if search_query %}
+        <div class="stats">
+            Found {{ races|length }} race(s) matching "{{ search_query }}"
+        </div>
+        {% else %}
+        <div class="stats">
+            Showing {{ races|length }} published race(s)
+        </div>
+        {% endif %}
+        
+        {% if races %}
+        <div class="results-grid">
+            {% for race in races %}
+            <div class="race-card" onclick="window.location.href='/results/{{ race.id }}'">
+                <div class="race-name">{{ race.name }}</div>
+                <span class="race-type">{{ race.race_type }}</span>
+                
+                <div class="race-info">
+                    <strong>Event:</strong> {{ race.event_name or 'N/A' }}
+                </div>
+                
+                {% if race.location %}
+                <div class="race-info">
+                    <strong>📍 Location:</strong> {{ race.location }}
+                </div>
+                {% endif %}
+                
+                {% if race.date %}
+                <div class="race-info">
+                    <strong>📅 Date:</strong> {{ race.date[:10] }}
+                </div>
+                {% endif %}
+                
+                {% if race.participant_count %}
+                <div class="race-info">
+                    <strong>👥 Participants:</strong> {{ race.participant_count }}
+                </div>
+                {% endif %}
+                
+                <a href="/results/{{ race.id }}" class="view-results" onclick="event.stopPropagation()">
+                    View Results →
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-results">
+            {% if search_query %}
+            No races found matching "{{ search_query }}". Try a different search term.
+            {% else %}
+            No published races available yet.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

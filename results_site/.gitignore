@@ -1,0 +1,21 @@
+# Vercel
+.vercel
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/

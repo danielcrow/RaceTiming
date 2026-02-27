@@ -174,6 +174,9 @@
                         <p id="event-details" style="margin: 0.5rem 0 0 0; opacity: 0.9;"></p>
                     </div>
                     <div class="d-flex gap-2">
+                        <button class="btn btn-primary" onclick="window.location.href='/event/{{ event_id }}/master-control'">
+                            🎛️ Master Control
+                        </button>
                         <button class="btn btn-light" onclick="publishEvent()">📤 Publish All Results</button>
                         <button class="btn btn-light" onclick="refreshAll()">🔄 Refresh All</button>
                     </div>

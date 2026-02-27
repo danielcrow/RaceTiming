@@ -40,6 +40,7 @@
                 <button class="tab-btn active" onclick="switchTab(event, 'tab-overview')">📊 Overview</button>
                 <button class="tab-btn" onclick="switchTab(event, 'tab-results')">🏆 Live Results</button>
                 <button class="tab-btn" onclick="switchTab(event, 'tab-timing')">⏱️ Timing</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-participants')">👥 Participants</button>
                 <button class="tab-btn" onclick="switchTab(event, 'tab-actions')">⚙️ Actions</button>
             </div>
 
@@ -218,25 +219,38 @@
         <div id="tab-timing" class="tab-content">
             <!-- Manual Time Entry -->
             <div class="card mb-4">
-                <div class="card-header">Manual Time Entry</div>
+                <div class="card-header">
+                    <div class="d-flex justify-between align-center">
+                        <span>Manual Time Entry</span>
+                        <span class="badge badge-info" id="next-point-indicator">Next: Loading...</span>
+                    </div>
+                </div>
                 <div class="card-body">
                     <form onsubmit="recordTime(event)">
                         <div class="grid grid-3">
                             <div class="form-group">
                                 <label class="form-label">Bib Number</label>
-                                <input type="number" id="manual-bib" class="form-control" required>
+                                <input type="number" id="manual-bib" class="form-control" required
+                                       placeholder="Enter bib #" autofocus>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Timing Point</label>
+                                <label class="form-label">
+                                    Timing Point
+                                    <span class="text-muted" style="font-size: 0.85em;">(Auto-selects next)</span>
+                                </label>
                                 <select id="manual-point" class="form-select" required>
-                                    <option value="Start">Start</option>
-                                    <option value="Finish">Finish</option>
+                                    <option value="">Loading timing points...</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">&nbsp;</label>
                                 <button type="submit" class="btn btn-primary w-100">⏱️ Record Time Now</button>
                             </div>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                💡 Tip: System automatically selects the next expected timing point for each participant
+                            </small>
                         </div>
                     </form>
                 </div>
@@ -272,7 +286,46 @@
             </div>
         </div>
 
-        <!-- Tab 4: Actions -->
+        <!-- Tab 4: Participants -->
+        <div id="tab-participants" class="tab-content">
+            <div class="card">
+                <div class="card-header d-flex justify-between align-center">
+                    <span>Race Participants</span>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="participant-search" class="form-control"
+                               placeholder="🔍 Search name or bib..." style="width: 220px;"
+                               oninput="filterParticipants(this.value)">
+                        <button class="btn btn-sm btn-primary" onclick="refreshParticipants()">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div style="max-height: 600px; overflow-y: auto;">
+                        <table class="table" id="participants-table-wrapper">
+                            <thead>
+                                <tr>
+                                    <th style="width:70px;">Bib</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Gender</th>
+                                    <th>Age</th>
+                                    <th>Status</th>
+                                    <th>Total Time</th>
+                                    <th>Rank</th>
+                                    <th style="width:130px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="participants-table">
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted">Loading participants...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Actions -->
         <div id="tab-actions" class="tab-content">
             <div class="grid grid-2">
                 <!-- Bulk Operations -->
@@ -305,6 +358,122 @@
                 </div>
             </div>
         </div>
+        </div>
+
+        <!-- Edit Participant Modal -->
+        <div id="edit-participant-modal" class="modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+            <div class="modal-content card" style="margin: 5% auto; max-width: 560px;">
+                <div class="card-header d-flex justify-between align-center">
+                    <span>✏️ Edit Participant</span>
+                    <button class="btn btn-sm btn-secondary" onclick="closeEditParticipant()">✕</button>
+                </div>
+                <div class="card-body">
+                    <form onsubmit="saveParticipant(event)">
+                        <input type="hidden" id="ep-participant-id">
+                        <input type="hidden" id="ep-race-id">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">First Name</label>
+                                <input type="text" id="ep-first-name" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" id="ep-last-name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Bib Number</label>
+                                <input type="text" id="ep-bib" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Category</label>
+                                <input type="text" id="ep-category" class="form-control" placeholder="e.g. Open, AG 40-49">
+                            </div>
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Gender</label>
+                                <select id="ep-gender" class="form-select">
+                                    <option value="">Unknown</option>
+                                    <option value="M">Male</option>
+                                    <option value="F">Female</option>
+                                    <option value="NB">Non-binary</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Age</label>
+                                <input type="number" id="ep-age" class="form-control" min="1" max="120">
+                            </div>
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" id="ep-email" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Phone</label>
+                                <input type="text" id="ep-phone" class="form-control">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">RFID Tag</label>
+                            <input type="text" id="ep-rfid" class="form-control" placeholder="EPC tag number">
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeEditParticipant()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Participant Splits / Times Drill-down Modal -->
+        <div id="splits-modal" class="modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+            <div class="modal-content card" style="margin: 4% auto; max-width: 700px;">
+                <div class="card-header d-flex justify-between align-center">
+                    <span id="splits-modal-title">⏱️ Times & Splits</span>
+                    <button class="btn btn-sm btn-secondary" onclick="closeSplitsModal()">✕</button>
+                </div>
+                <div class="card-body">
+                    <!-- Participant summary -->
+                    <div id="splits-summary" class="mb-3" style="background: var(--gray-50); border-radius: 8px; padding: 1rem;">
+                    </div>
+
+                    <!-- Splits table -->
+                    <table class="table" style="margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Checkpoint</th>
+                                <th>Time of Day</th>
+                                <th>Elapsed</th>
+                                <th>Split</th>
+                                <th>Source</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="splits-table-body">
+                        </tbody>
+                    </table>
+
+                    <!-- Add manual time for this participant -->
+                    <div class="mt-4" style="border-top: 1px solid var(--gray-200); padding-top: 1rem;">
+                        <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">➕ Record Time at Checkpoint</h4>
+                        <form onsubmit="recordSplitTime(event)" class="d-flex gap-2 align-center" style="flex-wrap: wrap;">
+                            <input type="hidden" id="splits-bib-input">
+                            <select id="splits-point-select" class="form-select" style="flex: 1; min-width: 160px;" required>
+                            </select>
+                            <input type="datetime-local" id="splits-time-input" class="form-control" step="1" style="flex: 1; min-width: 180px;">
+                            <button type="submit" class="btn btn-primary">⏱️ Record</button>
+                        </form>
+                        <small class="text-muted">Leave time blank to use current time.</small>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Edit Start Time Modal -->
@@ -388,8 +557,8 @@
                 const selector = document.getElementById('race-selector');
                 selector.innerHTML = '';
 
-                // Filter to races that have been started or have LLRP enabled (active races)
-                const activeRaces = races.filter(r => r.start_time || r.llrp_enabled);
+                // Filter to races that have been started but not finished (active races)
+                const activeRaces = races.filter(r => r.start_time && !r.finish_time);
 
                 if (activeRaces.length === 0) {
                     selector.innerHTML = '<option value="">No active races</option>';
@@ -403,8 +572,8 @@
                     option.textContent = race.name;
                     option.selected = race.id === raceId;
 
-                    // Mark active races
-                    if (race.start_time || race.llrp_enabled) {
+                    // Mark active races (started but not finished)
+                    if (race.start_time && !race.finish_time) {
                         option.textContent += ' 🟢';
                     }
 
@@ -676,6 +845,95 @@
                 window.RaceTimingApp.showAlert('Error stopping LLRP: ' + error.message, 'danger');
             }
         }
+        let timingPoints = [];
+        let participantNextPoints = {}; // Cache of next timing point for each bib
+
+        async function loadTimingPoints() {
+            try {
+                const response = await fetch(`/api/races/${raceId}`);
+                const race = await response.json();
+                timingPoints = race.timing_points || [];
+                
+                // Sort by order
+                timingPoints.sort((a, b) => a.order - b.order);
+                
+                // Populate dropdown
+                const select = document.getElementById('manual-point');
+                select.innerHTML = timingPoints.map(tp => 
+                    `<option value="${tp.name}">${tp.order}. ${tp.name}</option>`
+                ).join('');
+                
+                // Update indicator
+                if (timingPoints.length > 0) {
+                    document.getElementById('next-point-indicator').textContent = 
+                        `Next: ${timingPoints[0].name}`;
+                }
+            } catch (error) {
+                console.error('Error loading timing points:', error);
+                document.getElementById('manual-point').innerHTML = 
+                    '<option value="">Error loading points</option>';
+            }
+        }
+
+        async function getNextTimingPoint(bibNumber) {
+            try {
+                // Get participant's time records
+                const response = await fetch(`/api/races/${raceId}/time-records`);
+                const records = await response.json();
+                
+                // Filter records for this bib
+                const bibRecords = records.filter(r => r.bib_number === bibNumber);
+                
+                // Get recorded timing point IDs
+                const recordedPointIds = bibRecords.map(r => r.timing_point_id);
+                
+                // Find first unrecorded timing point
+                for (const tp of timingPoints) {
+                    if (!recordedPointIds.includes(tp.id)) {
+                        return tp.name;
+                    }
+                }
+                
+                // All points recorded, return last point
+                return timingPoints[timingPoints.length - 1]?.name || '';
+            } catch (error) {
+                console.error('Error getting next timing point:', error);
+                return timingPoints[0]?.name || '';
+            }
+        }
+
+        // Setup auto-select timing point listeners (called from DOMContentLoaded)
+        function setupTimingPointListeners() {
+            const bibInput = document.getElementById('manual-bib');
+            const pointSelect = document.getElementById('manual-point');
+            
+            if (!bibInput || !pointSelect) return;
+            
+            bibInput.addEventListener('change', async () => {
+                const bibNumber = parseInt(bibInput.value);
+                if (bibNumber && !isNaN(bibNumber)) {
+                    const nextPoint = await getNextTimingPoint(bibNumber);
+                    if (nextPoint) {
+                        pointSelect.value = nextPoint;
+                        document.getElementById('next-point-indicator').textContent =
+                            `Next for #${bibNumber}: ${nextPoint}`;
+                        document.getElementById('next-point-indicator').className =
+                            'badge badge-success';
+                    }
+                }
+            });
+            
+            // Reset indicator when bib is cleared
+            bibInput.addEventListener('input', () => {
+                if (!bibInput.value) {
+                    document.getElementById('next-point-indicator').textContent =
+                        timingPoints.length > 0 ? `Next: ${timingPoints[0].name}` : 'Next: Loading...';
+                    document.getElementById('next-point-indicator').className =
+                        'badge badge-info';
+                }
+            });
+        }
+
 
         async function recordTime(event) {
             event.preventDefault();
@@ -843,8 +1101,6 @@
         }
 
         // Time Records functions
-        let timingPoints = [];
-
         async function refreshTimeRecords() {
             try {
                 // Fetch results first to get bib numbers
@@ -1092,12 +1348,315 @@
             }
         }
 
+        // ====================================================================
+        // PARTICIPANTS TAB
+        // ====================================================================
+
+        let allParticipantsData = [];   // Full list for filtering
+        let currentSplitsParticipant = null;  // Participant currently shown in splits modal
+
+        async function refreshParticipants() {
+            try {
+                const resp = await fetch(`/api/races/${raceId}/participants`);
+                if (!resp.ok) throw new Error('Failed to load participants');
+                allParticipantsData = await resp.json();
+                renderParticipantsTable(allParticipantsData);
+            } catch (error) {
+                console.error('Error loading participants:', error);
+                document.getElementById('participants-table').innerHTML =
+                    `<tr><td colspan="9" class="text-center text-danger">Error loading participants: ${error.message}</td></tr>`;
+            }
+        }
+
+        function filterParticipants(query) {
+            if (!query) {
+                renderParticipantsTable(allParticipantsData);
+                return;
+            }
+            const q = query.toLowerCase();
+            const filtered = allParticipantsData.filter(p =>
+                (p.full_name || '').toLowerCase().includes(q) ||
+                (p.bib_number || '').toLowerCase().includes(q) ||
+                (p.category || '').toLowerCase().includes(q)
+            );
+            renderParticipantsTable(filtered);
+        }
+
+        // Lookup map: participant id -> participant object (set when rendering table)
+        const participantLookup = {};
+
+        function renderParticipantsTable(participants) {
+            const tbody = document.getElementById('participants-table');
+            if (participants.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No participants found</td></tr>';
+                return;
+            }
+
+            // Populate lookup map
+            participants.forEach(p => { participantLookup[p.id] = p; });
+
+            tbody.innerHTML = participants.map(p => {
+                const statusBadge = window.RaceTimingApp.getStatusBadge(p.status);
+                const timeStr = p.total_time ? window.RaceTimingApp.formatTime(p.total_time) : '—';
+                const rankStr = p.overall_rank ? `#${p.overall_rank}` : '—';
+                const completedSplits = p.splits.filter(s => s.timestamp).length;
+                const totalSplits = p.splits.length;
+                const splitsIndicator = totalSplits > 0
+                    ? `<span class="badge badge-${completedSplits === totalSplits ? 'success' : 'info'}" title="${completedSplits}/${totalSplits} checkpoints">${completedSplits}/${totalSplits} ✓</span>`
+                    : '';
+
+                return `<tr>
+                    <td><strong>#${p.bib_number || '—'}</strong></td>
+                    <td>${p.full_name}</td>
+                    <td>${p.category || '—'}</td>
+                    <td>${p.gender || '—'}</td>
+                    <td>${p.age || '—'}</td>
+                    <td>${statusBadge} ${splitsIndicator}</td>
+                    <td><strong>${timeStr}</strong></td>
+                    <td>${rankStr}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="openSplitsModalById(${p.id})" title="View times & splits">⏱️</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="openEditParticipantById(${p.id})" title="Edit participant">✏️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function openSplitsModalById(participantId) {
+            const p = participantLookup[participantId];
+            if (p) openSplitsModal(p);
+        }
+
+        function openEditParticipantById(participantId) {
+            const p = participantLookup[participantId];
+            if (p) openEditParticipant(p);
+        }
+
+        // ---- Edit Participant Modal ----
+
+        function openEditParticipant(p) {
+            document.getElementById('ep-participant-id').value = p.id;
+            document.getElementById('ep-race-id').value = raceId;
+            document.getElementById('ep-first-name').value = p.first_name || '';
+            document.getElementById('ep-last-name').value = p.last_name || '';
+            document.getElementById('ep-bib').value = p.bib_number || '';
+            document.getElementById('ep-category').value = p.category || '';
+            document.getElementById('ep-gender').value = p.gender || '';
+            document.getElementById('ep-age').value = p.age || '';
+            document.getElementById('ep-email').value = p.email || '';
+            document.getElementById('ep-phone').value = p.phone || '';
+            document.getElementById('ep-rfid').value = p.rfid_tag || '';
+            document.getElementById('edit-participant-modal').style.display = 'block';
+        }
+
+        function closeEditParticipant() {
+            document.getElementById('edit-participant-modal').style.display = 'none';
+        }
+
+        async function saveParticipant(event) {
+            event.preventDefault();
+            const participantId = parseInt(document.getElementById('ep-participant-id').value);
+            const bibNumber = document.getElementById('ep-bib').value.trim();
+            const category = document.getElementById('ep-category').value.trim();
+
+            try {
+                // Update core participant details
+                const resp = await fetch(`/api/participants/${participantId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        first_name: document.getElementById('ep-first-name').value.trim(),
+                        last_name: document.getElementById('ep-last-name').value.trim(),
+                        email: document.getElementById('ep-email').value.trim() || null,
+                        phone: document.getElementById('ep-phone').value.trim() || null,
+                        gender: document.getElementById('ep-gender').value || null,
+                        age: parseInt(document.getElementById('ep-age').value) || null,
+                        rfid_tag: document.getElementById('ep-rfid').value.trim() || null,
+                    })
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.error || 'Failed to update participant');
+                }
+
+                // Update race registration (bib + category)
+                const regResp = await fetch(`/api/races/${raceId}/participants/${participantId}/registration`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bib_number: bibNumber, category })
+                });
+                if (!regResp.ok) {
+                    const err = await regResp.json();
+                    throw new Error(err.error || 'Failed to update registration');
+                }
+
+                window.RaceTimingApp.showAlert('Participant updated successfully', 'success');
+                closeEditParticipant();
+                refreshParticipants();
+                refreshResults();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error: ' + error.message, 'danger');
+            }
+        }
+
+        // ---- Splits / Times Drill-down Modal ----
+
+        function openSplitsModal(p) {
+            currentSplitsParticipant = p;
+            document.getElementById('splits-modal-title').textContent =
+                `\u23F1\uFE0F Times & Splits \u2014 #${p.bib_number || '?'} ${p.full_name}`;
+
+            // Summary bar
+            const statusBadge = window.RaceTimingApp.getStatusBadge(p.status);
+            const timeStr = p.total_time ? window.RaceTimingApp.formatTime(p.total_time) : '\u2014';
+            document.getElementById('splits-summary').innerHTML = `
+                <div class="grid grid-4" style="gap: 0.5rem; text-align: center;">
+                    <div><div class="text-muted" style="font-size:0.8rem;">Status</div><div>${statusBadge}</div></div>
+                    <div><div class="text-muted" style="font-size:0.8rem;">Total Time</div><div><strong>${timeStr}</strong></div></div>
+                    <div><div class="text-muted" style="font-size:0.8rem;">Rank</div><div><strong>${p.overall_rank ? '#' + p.overall_rank : '\u2014'}</strong></div></div>
+                    <div><div class="text-muted" style="font-size:0.8rem;">Category</div><div>${p.category || '\u2014'}</div></div>
+                </div>
+            `;
+
+            // Populate timing point selector for adding times
+            const pointSelect = document.getElementById('splits-point-select');
+            pointSelect.innerHTML = p.splits.map(s =>
+                `<option value="${s.timing_point_name}">${s.order}. ${s.timing_point_name}</option>`
+            ).join('');
+            document.getElementById('splits-bib-input').value = p.bib_number;
+
+            // Set default time to now
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('splits-time-input').value = now.toISOString().slice(0, 19);
+
+            renderSplitsTable(p.splits);
+            document.getElementById('splits-modal').style.display = 'block';
+        }
+
+        function closeSplitsModal() {
+            document.getElementById('splits-modal').style.display = 'none';
+            currentSplitsParticipant = null;
+        }
+
+        function renderSplitsTable(splits) {
+            const tbody = document.getElementById('splits-table-body');
+            if (splits.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No timing points configured</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = splits.map(s => {
+                const timeOfDay = s.timestamp
+                    ? new Date(s.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                    : '<span class="text-muted">\u2014</span>';
+                const elapsed = s.elapsed_seconds !== null
+                    ? window.RaceTimingApp.formatTime(s.elapsed_seconds)
+                    : '<span class="text-muted">\u2014</span>';
+                const split = s.split_seconds !== null
+                    ? window.RaceTimingApp.formatTime(s.split_seconds)
+                    : '<span class="text-muted">\u2014</span>';
+                const sourceBadge = s.source
+                    ? `<span class="badge badge-${s.source === 'llrp' ? 'primary' : 'secondary'}">${s.source.toUpperCase()}</span>`
+                    : '<span class="text-muted">\u2014</span>';
+                const checkpointLabel = `${s.is_start ? '\uD83C\uDFC1 ' : s.is_finish ? '\uD83C\uDFC6 ' : '\uD83D\uDCCD '}${s.timing_point_name}`;
+                const rowStyle = s.timestamp ? '' : 'opacity: 0.55;';
+
+                const deleteBtn = s.time_record_id
+                    ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteSplitRecord(${s.time_record_id})" title="Delete this time">🗑️</button>`
+                    : '';
+                // Store split data on a data attribute to avoid quoting issues in onclick
+                const editBtn = s.time_record_id
+                    ? `<button class="btn btn-sm btn-outline-primary" onclick="editSplitRecordById(${s.time_record_id}, ${s.timing_point_id}, '${(s.timestamp || '').replace(/'/g, '')}', '${s.timing_point_name.replace(/'/g, '')}')" title="Edit time">✏️</button>`
+                    : '';
+
+                return `<tr style="${rowStyle}">
+                    <td>${s.order}</td>
+                    <td>${checkpointLabel}</td>
+                    <td>${timeOfDay}</td>
+                    <td>${elapsed}</td>
+                    <td>${split}</td>
+                    <td>${sourceBadge}</td>
+                    <td>${editBtn} ${deleteBtn}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function recordSplitTime(event) {
+            event.preventDefault();
+            const bibNumber = parseInt(document.getElementById('splits-bib-input').value);
+            const timingPoint = document.getElementById('splits-point-select').value;
+            const timeInput = document.getElementById('splits-time-input').value;
+            const timestamp = timeInput ? new Date(timeInput).toISOString() : new Date().toISOString();
+
+            try {
+                await window.RaceTimingApp.API.recordTime(raceId, {
+                    bib_number: bibNumber,
+                    timing_point: timingPoint,
+                    timestamp: timestamp
+                });
+                window.RaceTimingApp.showAlert(`Time recorded at ${timingPoint}`, 'success');
+                // Reload participant data and re-render splits
+                await refreshParticipants();
+                const updated = allParticipantsData.find(p => String(p.bib_number) === String(bibNumber));
+                if (updated) openSplitsModal(updated);
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error recording time: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteSplitRecord(timeRecordId) {
+            if (!confirm('Delete this time record?')) return;
+            try {
+                await window.RaceTimingApp.API.deleteTimeRecord(timeRecordId);
+                window.RaceTimingApp.showAlert('Time record deleted', 'success');
+                await refreshParticipants();
+                if (currentSplitsParticipant) {
+                    const updated = allParticipantsData.find(p => p.id === currentSplitsParticipant.id);
+                    if (updated) openSplitsModal(updated);
+                }
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting record: ' + error.message, 'danger');
+            }
+        }
+
+        function editSplitRecordById(timeRecordId, timingPointId, timestamp, timingPointName) {
+            // Reuse the existing edit time record modal
+            const modal = document.getElementById('edit-time-record-modal');
+            document.getElementById('edit-record-id').value = timeRecordId;
+            document.getElementById('edit-record-participant').textContent =
+                currentSplitsParticipant ? currentSplitsParticipant.full_name : '';
+
+            // Populate timing points dropdown
+            const select = document.getElementById('edit-record-timing-point');
+            select.innerHTML = '';
+            timingPoints.forEach(tp => {
+                const option = document.createElement('option');
+                option.value = tp.id;
+                option.textContent = tp.name;
+                option.selected = tp.id === timingPointId;
+                select.appendChild(option);
+            });
+
+            // Set timestamp
+            if (timestamp) {
+                const date = new Date(timestamp);
+                date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+                document.getElementById('edit-record-timestamp').value = date.toISOString().slice(0, 19);
+            }
+
+            modal.style.display = 'block';
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadRaceSelector();
             loadRaceInfo();
+            loadTimingPoints();
+            setupTimingPointListeners();
             refreshResults();
             refreshTimeRecords();
+            refreshParticipants();
 
             // Auto-refresh every 5 seconds
             refreshInterval = setInterval(() => {

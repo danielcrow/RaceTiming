@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Event Control</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .master-control-header {
+            background: linear-gradient(135deg, #1a237e, #0d47a1);
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .race-control-card {
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            padding: 1.5rem;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .race-control-card.active {
+            border-color: var(--success-color);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+        }
+
+        .race-control-card.finished {
+            border-color: var(--primary-color);
+            opacity: 0.8;
+        }
+
+        .race-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .race-status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .race-status-badge.not-started {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .race-status-badge.active {
+            background: var(--success-color);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .race-status-badge.finished {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .race-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: var(--gray-50);
+            border-radius: 4px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        .race-controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .manual-timing-section {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .timing-form {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto auto;
+            gap: 0.5rem;
+            align-items: end;
+        }
+
+        @media (max-width: 768px) {
+            .timing-form {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--gray-700);
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 0.5rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .reads-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .reads-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .reads-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid var(--gray-200);
+            border-radius: 4px;
+        }
+
+        .read-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--gray-200);
+            transition: background 0.3s;
+        }
+
+        .read-item:last-child {
+            border-bottom: none;
+        }
+
+        .read-item.new {
+            background: #e8f5e9;
+            animation: highlight 2s ease-out;
+        }
+
+        @keyframes highlight {
+            0% { background: var(--success-color); }
+            100% { background: transparent; }
+        }
+
+        .read-race-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+
+        .read-source-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .read-source-badge.llrp {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .read-source-badge.manual {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .time-edit-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .time-edit-modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-body {
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-btn.start-all {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .action-btn.stop-all {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .action-btn.refresh-all {
+            background: var(--info-color);
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <!-- Master Control Header -->
+            <div class="master-control-header">
+                <div class="d-flex justify-between align-items-center">
+                    <div>
+                        <h1 id="event-name" style="margin: 0;">Master Event Control</h1>
+                        <p id="event-details" style="margin: 0.5rem 0 0 0; opacity: 0.9;"></p>
+                    </div>
+                    <div>
+                        <button class="btn btn-light" onclick="window.location.href='/event/{{ event_id }}/control'">
+                            📊 Standard View
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <button class="action-btn start-all" onclick="startAllRaces()">
+                    ▶️ Start All Races
+                </button>
+                <button class="action-btn stop-all" onclick="stopAllRaces()">
+                    ⏹️ Stop All Races
+                </button>
+                <button class="action-btn refresh-all" onclick="refreshAll()">
+                    🔄 Refresh All
+                </button>
+            </div>
+
+            <!-- Unified Manual Timing -->
+            <div class="manual-timing-section">
+                <h2 style="margin-bottom: 0.5rem;">⏱️ Quick Manual Timing</h2>
+                <p id="selected-race-info" style="margin: 0 0 1rem 0; color: var(--gray-600); font-size: 0.9rem;">
+                    Select a race to begin timing
+                </p>
+                <div class="timing-form" style="grid-template-columns: auto 1fr auto auto;">
+                    <div class="form-group">
+                        <label for="race-select">Race</label>
+                        <select id="race-select" onchange="selectRace()">
+                            <option value="">Select race...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="bib-input">Bib/Tag # <span style="color: var(--danger-color);">*</span></label>
+                        <input type="text" id="bib-input" placeholder="Enter bib or tag" autofocus />
+                    </div>
+                    <div class="form-group">
+                        <label for="time-input">Time (optional)</label>
+                        <input type="time" id="time-input" step="1" />
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-success" onclick="recordManualTime()">
+                            ✓ Record Time
+                        </button>
+                    </div>
+                </div>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--gray-600);">
+                    💡 <strong>Auto-Timing:</strong> Just enter bib/tag number - system automatically records at next timing point with current time.
+                </p>
+            </div>
+
+            <!-- Race Control Cards -->
+            <h2>Race Controls</h2>
+            <div id="control-grid" class="control-grid">
+                <div class="text-center text-muted">Loading races...</div>
+            </div>
+
+            <!-- Live Reads Panel -->
+            <div class="reads-panel">
+                <div class="reads-header">
+                    <h2 style="margin: 0;">📡 Live Checkpoint Reads (All Races)</h2>
+                    <div>
+                        <label style="margin-right: 1rem;">
+                            <input type="checkbox" id="auto-scroll" checked>
+                            Auto-scroll
+                        </label>
+                        <button class="btn btn-sm btn-secondary" onclick="clearReads()">Clear</button>
+                    </div>
+                </div>
+                <div id="reads-container" class="reads-container">
+                    <div class="text-center text-muted" style="padding: 2rem;">No reads yet</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Time Edit Modal -->
+    <div id="time-edit-modal" class="time-edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin: 0;">Edit Time Record</h3>
+                <button class="btn btn-sm btn-secondary" onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label>Participant</label>
+                    <input type="text" id="edit-participant" readonly style="background: var(--gray-100);" />
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label>Timing Point</label>
+                    <input type="text" id="edit-timing-point" readonly style="background: var(--gray-100);" />
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label>Time</label>
+                    <input type="datetime-local" id="edit-time" step="1" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="deleteTimeRecord()">Delete</button>
+                <button class="btn btn-primary" onclick="saveTimeEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        const eventId = {{ event_id | tojson }};
+        let races = [];
+        let allReads = [];
+        let currentEditRecord = null;
+        let refreshInterval;
+
+        async function loadEvent() {
+            try {
+                const event = await window.RaceTimingApp.API.getEvent(eventId);
+                document.getElementById('event-name').textContent = `Master Control: ${event.name}`;
+                document.getElementById('event-details').textContent =
+                    `${event.location || 'No location'} • ${window.RaceTimingApp.formatDate(event.date)}`;
+            } catch (error) {
+                console.error('Error loading event:', error);
+            }
+        }
+
+        async function loadRaces() {
+            try {
+                const allRaces = await window.RaceTimingApp.API.getRaces();
+                races = allRaces.filter(r => r.event_id === eventId);
+
+                // Update race selector
+                const raceSelect = document.getElementById('race-select');
+                raceSelect.innerHTML = '<option value="">Select race...</option>';
+                races.forEach(race => {
+                    const option = document.createElement('option');
+                    option.value = race.id;
+                    option.textContent = race.name;
+                    raceSelect.appendChild(option);
+                });
+
+                // Update control grid
+                const grid = document.getElementById('control-grid');
+                grid.innerHTML = '';
+
+                if (races.length === 0) {
+                    grid.innerHTML = '<div class="text-center text-muted">No races in this event</div>';
+                    return;
+                }
+
+                for (const race of races) {
+                    const card = await createRaceControlCard(race);
+                    grid.appendChild(card);
+                }
+            } catch (error) {
+                console.error('Error loading races:', error);
+            }
+        }
+
+        async function createRaceControlCard(race) {
+            const card = document.createElement('div');
+            card.className = 'race-control-card';
+
+            // Get results for stats
+            const results = await window.RaceTimingApp.API.getResults(race.id);
+            const stats = {
+                total: results.length,
+                started: results.filter(r => r.status === 'started' || r.status === 'finished').length,
+                finished: results.filter(r => r.status === 'finished').length
+            };
+
+            // Determine race status
+            let status = 'not-started';
+            let statusText = 'Not Started';
+
+            if (race.finish_time) {
+                status = 'finished';
+                statusText = 'Finished';
+                card.classList.add('finished');
+            } else if (race.start_time) {
+                status = 'active';
+                statusText = 'Active';
+                card.classList.add('active');
+            }
+
+            card.innerHTML = `
+                <div class="race-header">
+                    <h3 style="margin: 0;">${race.name}</h3>
+                    <span class="race-status-badge ${status}">${statusText}</span>
+                </div>
+                <div class="race-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">${stats.total}</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">${stats.started}</span>
+                        <span class="stat-label">Started</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">${stats.finished}</span>
+                        <span class="stat-label">Finished</span>
+                    </div>
+                </div>
+                <div class="race-controls">
+                    ${!race.start_time ?
+                        `<button class="btn btn-sm btn-success" onclick="startRace(${race.id})">▶️ Start</button>` :
+                        !race.finish_time ?
+                            `<button class="btn btn-sm btn-warning" onclick="stopRace(${race.id})">⏹️ Stop</button>` :
+                            `<button class="btn btn-sm btn-secondary" disabled>Finished</button>`
+                    }
+                    ${race.start_time ?
+                        `<button class="btn btn-sm btn-info" onclick="editStartTime(${race.id})">✏️ Edit Start</button>` :
+                        ''
+                    }
+                    <button class="btn btn-sm btn-danger" onclick="resetRace(${race.id})">🔄 Reset</button>
+                    <button class="btn btn-sm btn-primary" onclick="window.location.href='/race/${race.id}/control'">
+                        🎛️ Control
+                    </button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        async function selectRace() {
+            const raceId = document.getElementById('race-select').value;
+            const infoText = document.getElementById('selected-race-info');
+            const bibInput = document.getElementById('bib-input');
+
+            if (!raceId) {
+                infoText.textContent = 'Select a race to begin timing';
+                infoText.style.color = 'var(--gray-600)';
+                infoText.style.fontWeight = 'normal';
+                return;
+            }
+
+            try {
+                const race = await window.RaceTimingApp.API.getRace(raceId);
+                
+                // Update info text
+                infoText.textContent = `📍 Auto-Timing: ${race.name} - Enter bib/tag, system finds next timing point automatically`;
+                infoText.style.color = 'var(--success-color)';
+                infoText.style.fontWeight = '600';
+                
+                // Auto-focus bib input for quick entry
+                bibInput.focus();
+            } catch (error) {
+                console.error('Error loading race:', error);
+                infoText.textContent = 'Error loading race data';
+                infoText.style.color = 'var(--danger-color)';
+            }
+        }
+
+        async function recordManualTime() {
+            const raceId = document.getElementById('race-select').value;
+            const bibInput = document.getElementById('bib-input');
+            const bibNumber = bibInput.value.trim();
+            const timeInput = document.getElementById('time-input').value;
+
+            if (!raceId) {
+                window.RaceTimingApp.showAlert('Please select a race first', 'warning');
+                document.getElementById('race-select').focus();
+                return;
+            }
+
+            if (!bibNumber) {
+                window.RaceTimingApp.showAlert('Please enter a bib/tag number', 'warning');
+                bibInput.focus();
+                return;
+            }
+
+            try {
+                const data = {
+                    bib_number: bibNumber
+                };
+
+                if (timeInput) {
+                    const today = new Date().toISOString().split('T')[0];
+                    data.timestamp = new Date(`${today}T${timeInput}`).toISOString();
+                }
+
+                const response = await fetch(`/api/races/${raceId}/control/time-auto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to record time');
+                }
+
+                // Show success with timing point info
+                window.RaceTimingApp.showAlert(
+                    `✓ Bib #${bibNumber} → ${result.timing_point} (${result.participant_name})`,
+                    'success'
+                );
+                
+                // Clear bib and time inputs (keep race selected)
+                bibInput.value = '';
+                document.getElementById('time-input').value = '';
+                
+                // Auto-focus bib input for next entry
+                bibInput.focus();
+                
+                // Refresh reads
+                await loadReads();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error recording time: ' + error.message, 'danger');
+            }
+        }
+
+        async function loadReads() {
+            try {
+                allReads = [];
+
+                for (const race of races) {
+                    const records = await window.RaceTimingApp.API.getTimeRecords(race.id);
+                    const results = await window.RaceTimingApp.API.getResults(race.id);
+
+                    records.forEach(record => {
+                        const result = results.find(r => r.participant.id === record.participant.id);
+                        allReads.push({
+                            ...record,
+                            race_name: race.name,
+                            race_id: race.id,
+                            bib_number: result ? result.bib_number : '?'
+                        });
+                    });
+                }
+
+                // Sort by timestamp (newest first)
+                allReads.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                // Display reads
+                const container = document.getElementById('reads-container');
+                container.innerHTML = '';
+
+                if (allReads.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted" style="padding: 2rem;">No reads yet</div>';
+                    return;
+                }
+
+                allReads.slice(0, 100).forEach(read => {
+                    const item = createReadItem(read);
+                    container.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error loading reads:', error);
+            }
+        }
+
+        function createReadItem(read) {
+            const item = document.createElement('div');
+            item.className = 'read-item';
+
+            const date = new Date(read.timestamp);
+            const timeStr = date.toLocaleTimeString();
+
+            item.innerHTML = `
+                <div>
+                    <span class="read-race-badge">${read.race_name}</span>
+                    <strong>#${read.bib_number}</strong> ${read.participant.name}
+                    <span style="color: var(--gray-600); margin-left: 0.5rem;">→ ${read.timing_point.name}</span>
+                </div>
+                <div style="text-align: right;">
+                    <div><strong>${timeStr}</strong></div>
+                    <div>
+                        <span class="read-source-badge ${read.source}">${read.source.toUpperCase()}</span>
+                        <button class="btn btn-sm btn-secondary" onclick="editTimeRecord(${JSON.stringify(read).replace(/"/g, '"')})" 
+                                style="margin-left: 0.5rem; padding: 0.25rem 0.5rem;">✏️</button>
+                    </div>
+                </div>
+            `;
+
+            return item;
+        }
+
+        function editTimeRecord(record) {
+            currentEditRecord = record;
+            document.getElementById('edit-participant').value = `#${record.bib_number} ${record.participant.name}`;
+            document.getElementById('edit-timing-point').value = record.timing_point.name;
+            
+            const date = new Date(record.timestamp);
+            const dateStr = date.toISOString().slice(0, 19);
+            document.getElementById('edit-time').value = dateStr;
+            
+            document.getElementById('time-edit-modal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('time-edit-modal').classList.remove('active');
+            currentEditRecord = null;
+        }
+
+        async function saveTimeEdit() {
+            if (!currentEditRecord) return;
+
+            const newTime = document.getElementById('edit-time').value;
+            if (!newTime) {
+                window.RaceTimingApp.showAlert('Please enter a time', 'warning');
+                return;
+            }
+
+            try {
+                await fetch(`/api/time-records/${currentEditRecord.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        timestamp: new Date(newTime).toISOString()
+                    })
+                });
+
+                window.RaceTimingApp.showAlert('Time updated successfully', 'success');
+                closeEditModal();
+                await loadReads();
+                await loadRaces();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error updating time: ' + error.message, 'danger');
+            }
+        }
+
+        async function deleteTimeRecord() {
+            if (!currentEditRecord) return;
+
+            if (!confirm('Delete this time record?')) return;
+
+            try {
+                await fetch(`/api/time-records/${currentEditRecord.id}`, {
+                    method: 'DELETE'
+                });
+
+                window.RaceTimingApp.showAlert('Time record deleted', 'success');
+                closeEditModal();
+                await loadReads();
+                await loadRaces();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error deleting time: ' + error.message, 'danger');
+            }
+        }
+
+        async function startRace(raceId) {
+            if (!confirm('Start this race now?')) return;
+
+            try {
+                await window.RaceTimingApp.API.startRace(raceId);
+                window.RaceTimingApp.showAlert('Race started!', 'success');
+                await refreshAll();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error starting race: ' + error.message, 'danger');
+            }
+        }
+
+        async function stopRace(raceId) {
+            if (!confirm('Stop this race?')) return;
+
+            try {
+                await fetch(`/api/races/${raceId}/stop`, { method: 'POST' });
+                window.RaceTimingApp.showAlert('Race stopped!', 'success');
+                await refreshAll();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error stopping race: ' + error.message, 'danger');
+            }
+        }
+
+        async function resetRace(raceId) {
+            if (!confirm('Reset this race? This will clear all times and results!')) return;
+
+            try {
+                await fetch(`/api/races/${raceId}/reset`, { method: 'POST' });
+                window.RaceTimingApp.showAlert('Race reset successfully', 'success');
+                await refreshAll();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error resetting race: ' + error.message, 'danger');
+            }
+        }
+
+        async function editStartTime(raceId) {
+            const race = races.find(r => r.id === raceId);
+            if (!race) return;
+
+            const currentTime = race.start_time ? new Date(race.start_time).toISOString().slice(0, 19) : '';
+            const newTime = prompt('Enter new start time (YYYY-MM-DDTHH:MM:SS):', currentTime);
+            
+            if (!newTime) return;
+
+            try {
+                await fetch(`/api/races/${raceId}/start-time`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ start_time: new Date(newTime).toISOString() })
+                });
+
+                window.RaceTimingApp.showAlert('Start time updated', 'success');
+                await refreshAll();
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error updating start time: ' + error.message, 'danger');
+            }
+        }
+
+        async function startAllRaces() {
+            if (!confirm(`Start all ${races.length} races now?`)) return;
+
+            let started = 0;
+            for (const race of races) {
+                if (!race.start_time) {
+                    try {
+                        await window.RaceTimingApp.API.startRace(race.id);
+                        started++;
+                    } catch (error) {
+                        console.error(`Error starting race ${race.id}:`, error);
+                    }
+                }
+            }
+
+            window.RaceTimingApp.showAlert(`Started ${started} race(s)`, 'success');
+            await refreshAll();
+        }
+
+        async function stopAllRaces() {
+            if (!confirm(`Stop all active races?`)) return;
+
+            let stopped = 0;
+            for (const race of races) {
+                if (race.start_time && !race.finish_time) {
+                    try {
+                        await fetch(`/api/races/${race.id}/stop`, { method: 'POST' });
+                        stopped++;
+                    } catch (error) {
+                        console.error(`Error stopping race ${race.id}:`, error);
+                    }
+                }
+            }
+
+            window.RaceTimingApp.showAlert(`Stopped ${stopped} race(s)`, 'success');
+            await refreshAll();
+        }
+
+        function clearReads() {
+            document.getElementById('reads-container').innerHTML = 
+                '<div class="text-center text-muted" style="padding: 2rem;">No reads yet</div>';
+        }
+
+        async function refreshAll() {
+            await loadEvent();
+            await loadRaces();
+            await loadReads();
+        }
+
+        // Initialize
+        refreshAll();
+
+        // Auto-refresh every 3 seconds
+        refreshInterval = setInterval(async () => {
+            const oldReadsCount = allReads.length;
+            await loadRaces();
+            await loadReads();
+
+            // Scroll to top if new reads and auto-scroll enabled
+            if (allReads.length > oldReadsCount && document.getElementById('auto-scroll').checked) {
+                document.getElementById('reads-container').scrollTop = 0;
+            }
+        }, 3000);
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter to record time
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                recordManualTime();
+            }
+        });
+    </script>
+</body>
+
+</html>

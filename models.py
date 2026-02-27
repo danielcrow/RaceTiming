@@ -2,8 +2,7 @@
 Database models for Race Timing System
 """
 from sqlalchemy import Column, Integer, String, Float, DateTime, Date, ForeignKey, Enum, Boolean, Table
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 import enum
 
@@ -57,6 +56,13 @@ class StartMode(enum.Enum):
     """Race start timing mode"""
     MASS_START = "mass_start"  # All participants start at race start time
     CHIP_START = "chip_start"  # Each participant starts on first tag read
+
+
+class TagDetectionMode(enum.Enum):
+    """LLRP tag detection mode for timing points"""
+    FIRST_SEEN = "first_seen"  # Use the first time a tag is detected
+    LAST_SEEN = "last_seen"  # Use the last time a tag is detected
+    PEAK_RSSI = "peak_rssi"  # Use timestamp when RSSI is strongest (quadratic regression)
 
 
 class LLRPStation(Base):
@@ -187,6 +193,8 @@ class TimingPoint(Base):
     is_finish = Column(Boolean, default=False)
     leg_id = Column(Integer, ForeignKey('race_legs.id'))  # Optional: associated leg
     llrp_station_id = Column(Integer, ForeignKey('llrp_stations.id'), nullable=True)  # Optional: assigned LLRP station
+    detection_mode = Column(Enum(TagDetectionMode), default=TagDetectionMode.FIRST_SEEN, nullable=False)  # Tag detection mode
+    detection_window_seconds = Column(Integer, default=3)  # Time window for collecting tag reads (for LAST_SEEN and PEAK_RSSI modes)
     
     # Relationships
     race = relationship("Race", back_populates="timing_points")

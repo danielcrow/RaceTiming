@@ -159,7 +159,15 @@
             <div id="tab-checkpoints" class="tab-content active">
                 <div class="d-flex justify-between align-center mb-4">
                     <h3>Timing Points</h3>
-                    <button class="btn btn-sm btn-success" onclick="showAddCheckpointForm()">+ Add Point</button>
+                    <div>
+                        <button class="btn btn-sm btn-success" onclick="showAddCheckpointForm()">+ Add Point</button>
+                        <button class="btn btn-sm btn-secondary ml-2" onclick="toggleReorderMode()" id="reorder-btn">
+                            ↕️ Reorder
+                        </button>
+                    </div>
+                </div>
+                <div id="reorder-hint" class="alert alert-info" style="display: none;">
+                    <strong>Reorder Mode:</strong> Drag and drop timing points to reorder them. Click "Save Order" when done.
                 </div>
 
                 <div id="add-checkpoint-form" class="card mb-4" style="display: none; background: var(--gray-50);">
@@ -184,7 +192,10 @@
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Order</th>
+                            <th style="width: 50px;">
+                                <span id="drag-handle-header" style="display: none;">⋮⋮</span>
+                                <span id="order-header">Order</span>
+                            </th>
                             <th>Name</th>
                             <th>Type</th>
                             <th>LLRP Station</th>
@@ -193,6 +204,10 @@
                     </thead>
                     <tbody id="checkpoints-table"></tbody>
                 </table>
+                <div id="reorder-actions" style="display: none;" class="mt-3">
+                    <button class="btn btn-primary" onclick="saveTimingPointOrder()">💾 Save Order</button>
+                    <button class="btn btn-secondary ml-2" onclick="cancelReorder()">Cancel</button>
+                </div>
             </div>
 
             <!-- Age Groups Tab -->
@@ -531,6 +546,9 @@
             document.getElementById('new-cp-order').value = '';
         }
 
+        let reorderMode = false;
+        let originalOrder = [];
+
         function renderCheckpoints() {
             const tbody = document.getElementById('checkpoints-table');
             tbody.innerHTML = '';
@@ -538,9 +556,20 @@
             const points = currentRace.timing_points || [];
             points.forEach(tp => {
                 const tr = document.createElement('tr');
+                tr.dataset.timingPointId = tp.id;
+                tr.dataset.order = tp.order;
+                
+                if (reorderMode) {
+                    tr.draggable = true;
+                    tr.style.cursor = 'move';
+                    tr.addEventListener('dragstart', handleDragStart);
+                    tr.addEventListener('dragover', handleDragOver);
+                    tr.addEventListener('drop', handleDrop);
+                    tr.addEventListener('dragend', handleDragEnd);
+                }
 
                 // Build station dropdown
-                let stationDropdown = '<select class="form-select form-select-sm" onchange="assignStation(' + tp.id + ', this.value)">';
+                let stationDropdown = '<select class="form-select form-select-sm" onchange="assignStation(' + tp.id + ', this.value)" ' + (reorderMode ? 'disabled' : '') + '>';
                 stationDropdown += '<option value="">No Station</option>';
                 llrpStations.forEach(station => {
                     const selected = tp.llrp_station_id === station.id ? 'selected' : '';
@@ -549,7 +578,10 @@
                 stationDropdown += '</select>';
 
                 tr.innerHTML = `
-<td>${tp.order}</td>
+<td>
+    <span class="drag-handle" style="display: ${reorderMode ? 'inline' : 'none'}; cursor: grab;">⋮⋮</span>
+    <span class="order-number" style="display: ${reorderMode ? 'none' : 'inline'};">${tp.order}</span>
+</td>
 <td>${tp.name}</td>
 <td>
     ${tp.is_start ? '<span class="badge badge-success">Start</span>' : ''}
@@ -558,12 +590,112 @@
 </td>
 <td>${stationDropdown}</td>
 <td>
-    <button onclick="deleteCheckpoint(${tp.id})" class="btn btn-sm btn-danger" ${tp.is_start || tp.is_finish
-                        ? 'disabled' : ''}>Delete</button>
+    <button onclick="deleteCheckpoint(${tp.id})" class="btn btn-sm btn-danger" ${tp.is_start || tp.is_finish || reorderMode ? 'disabled' : ''}>Delete</button>
 </td>
 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        function toggleReorderMode() {
+            reorderMode = !reorderMode;
+            const btn = document.getElementById('reorder-btn');
+            const hint = document.getElementById('reorder-hint');
+            const actions = document.getElementById('reorder-actions');
+            const dragHeader = document.getElementById('drag-handle-header');
+            const orderHeader = document.getElementById('order-header');
+            
+            if (reorderMode) {
+                btn.textContent = '❌ Cancel Reorder';
+                btn.className = 'btn btn-sm btn-warning ml-2';
+                hint.style.display = 'block';
+                actions.style.display = 'block';
+                dragHeader.style.display = 'inline';
+                orderHeader.style.display = 'none';
+                originalOrder = currentRace.timing_points.map(tp => ({ id: tp.id, order: tp.order }));
+            } else {
+                btn.textContent = '↕️ Reorder';
+                btn.className = 'btn btn-sm btn-secondary ml-2';
+                hint.style.display = 'none';
+                actions.style.display = 'none';
+                dragHeader.style.display = 'none';
+                orderHeader.style.display = 'inline';
+            }
+            
+            renderCheckpoints();
+        }
+
+        function cancelReorder() {
+            reorderMode = false;
+            toggleReorderMode();
+        }
+
+        let draggedElement = null;
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.style.opacity = '0.4';
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            if (draggedElement !== e.target && e.target.tagName === 'TR') {
+                const tbody = document.getElementById('checkpoints-table');
+                const allRows = Array.from(tbody.querySelectorAll('tr'));
+                const draggedIndex = allRows.indexOf(draggedElement);
+                const targetIndex = allRows.indexOf(e.target);
+
+                if (draggedIndex < targetIndex) {
+                    e.target.parentNode.insertBefore(draggedElement, e.target.nextSibling);
+                } else {
+                    e.target.parentNode.insertBefore(draggedElement, e.target);
+                }
+            }
+
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            e.target.style.opacity = '1';
+        }
+
+        async function saveTimingPointOrder() {
+            try {
+                const tbody = document.getElementById('checkpoints-table');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                const updates = rows.map((row, index) => ({
+                    id: parseInt(row.dataset.timingPointId),
+                    order: index + 1
+                }));
+
+                // Update each timing point
+                for (const update of updates) {
+                    await fetch(`/api/races/${currentRaceId}/timing-points/${update.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ order: update.order })
+                    });
+                }
+
+                window.RaceTimingApp.showAlert('Timing point order saved successfully', 'success');
+                reorderMode = false;
+                toggleReorderMode();
+                await loadRaceDetails(currentRaceId);
+            } catch (error) {
+                window.RaceTimingApp.showAlert('Error saving order: ' + error.message, 'danger');
+            }
         }
 
         async function assignStation(timingPointId, stationId) {

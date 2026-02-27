@@ -1,7 +1,7 @@
 """
 Flask Web Application for Race Timing System
 """
-from flask import Flask, render_template, jsonify, request, Response
+from flask import Flask, render_template, jsonify, request, Response, redirect
 from datetime import datetime
 from database import get_session, init_db
 from race_manager import RaceManager, ParticipantManager, EventManager
@@ -17,10 +17,11 @@ import queue
 import os
 import atexit
 import signal
+from config_manager import get_config_manager
 import requests
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change in production
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Global race control instances
 active_race_controls = {}
@@ -129,6 +130,11 @@ def event_details_page(event_id):
     """Event details page"""
     return render_template('event_details.html', event_id=event_id)
 
+@app.route('/event/<int:event_id>/master-control')
+def event_master_control_page(event_id):
+    """Master event timing control page"""
+    return render_template('event_master_control.html', event_id=event_id)
+
 @app.route('/participants')
 def participants_page():
     """Participant management page"""
@@ -177,37 +183,42 @@ def event_control_page(event_id):
 @app.route('/api/events', methods=['GET'])
 def get_events():
     """Get all events"""
-    manager = EventManager()
-    events = manager.list_events()
-    
-    return jsonify([{
-        'id': e.id,
-        'name': e.name,
-        'date': e.date.isoformat(),
-        'location': e.location,
-        'description': e.description,
-        'race_count': len(e.races)
-    } for e in events])
+    try:
+        manager = EventManager()
+        events = manager.list_events()
+        return jsonify([{
+            'id': e.id,
+            'name': e.name,
+            'date': e.date.isoformat() if e.date else None,
+            'location': e.location,
+            'description': e.description,
+            'race_count': len(e.races)
+        } for e in events])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/events', methods=['POST'])
 def create_event():
     """Create a new event"""
     data = request.json
-    manager = EventManager()
-    
-    event = manager.create_event(
-        name=data['name'],
-        date=data['date'],
-        location=data.get('location'),
-        description=data.get('description')
-    )
-    
-    return jsonify({
-        'id': event.id,
-        'name': event.name,
-        'date': event.date.isoformat(),
-        'message': 'Event created successfully'
-    }), 201
+    if not data or not data.get('name') or not data.get('date'):
+        return jsonify({'error': 'name and date are required'}), 400
+    try:
+        manager = EventManager()
+        event = manager.create_event(
+            name=data['name'],
+            date=data['date'],
+            location=data.get('location'),
+            description=data.get('description')
+        )
+        return jsonify({
+            'id': event.id,
+            'name': event.name,
+            'date': event.date.isoformat(),
+            'message': 'Event created successfully'
+        }), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/events/<int:event_id>', methods=['GET'])
 def get_event(event_id):
@@ -815,6 +826,143 @@ def update_race_event(race_id):
 
 
 # ============================================================================
+# API - RACE PARTICIPANTS (with times/splits)
+# ============================================================================
+
+@app.route('/api/races/<int:race_id>/participants', methods=['GET'])
+def get_race_participants(race_id):
+    """Get all participants in a race with their bib, category, status, and time records"""
+    try:
+        session = get_session()
+        from models import Race, RaceResult, TimeRecord, race_participants as rp_table
+        from sqlalchemy import text
+
+        race = session.query(Race).get(race_id)
+        if not race:
+            return jsonify({'error': 'Race not found'}), 404
+
+        # Build participant list from race_participants association table
+        rows = session.execute(
+            text("SELECT participant_id, bib_number, category FROM race_participants WHERE race_id = :rid"),
+            {'rid': race_id}
+        ).fetchall()
+
+        # Build a lookup of results keyed by participant_id
+        results_map = {}
+        for r in session.query(RaceResult).filter(RaceResult.race_id == race_id).all():
+            results_map[r.participant_id] = r
+
+        # Build a lookup of time records keyed by participant_id
+        time_records_map = {}
+        for tr in (session.query(TimeRecord)
+                   .filter(TimeRecord.race_id == race_id)
+                   .order_by(TimeRecord.timestamp)
+                   .all()):
+            time_records_map.setdefault(tr.participant_id, []).append(tr)
+
+        # Get timing points ordered
+        timing_points = sorted(race.timing_points, key=lambda tp: tp.order)
+
+        participants_out = []
+        for row in rows:
+            from models import Participant
+            p = session.query(Participant).get(row.participant_id)
+            if not p:
+                continue
+
+            result = results_map.get(p.id)
+            records = time_records_map.get(p.id, [])
+
+            # Build splits: timing_point_name -> {timestamp, elapsed_seconds}
+            splits = []
+            race_start = race.start_time
+            for tp in timing_points:
+                # Find the time record for this timing point
+                tr = next((r for r in records if r.timing_point_id == tp.id), None)
+                split_entry = {
+                    'timing_point_id': tp.id,
+                    'timing_point_name': tp.name,
+                    'is_start': tp.is_start,
+                    'is_finish': tp.is_finish,
+                    'order': tp.order,
+                    'timestamp': tr.timestamp.isoformat() if tr else None,
+                    'source': tr.source.value if tr else None,
+                    'time_record_id': tr.id if tr else None,
+                    'elapsed_seconds': None,
+                    'split_seconds': None,
+                }
+                if tr and race_start:
+                    split_entry['elapsed_seconds'] = (tr.timestamp - race_start).total_seconds()
+                # Calculate split from previous checkpoint
+                if tr and splits:
+                    prev = next((s for s in reversed(splits) if s['timestamp']), None)
+                    if prev:
+                        from datetime import datetime as dt
+                        prev_ts = dt.fromisoformat(prev['timestamp'])
+                        split_entry['split_seconds'] = (tr.timestamp - prev_ts).total_seconds()
+                splits.append(split_entry)
+
+            participants_out.append({
+                'id': p.id,
+                'first_name': p.first_name,
+                'last_name': p.last_name,
+                'full_name': p.full_name,
+                'email': p.email,
+                'phone': p.phone,
+                'gender': p.gender,
+                'age': p.age,
+                'rfid_tag': p.rfid_tag,
+                'bib_number': row.bib_number,
+                'category': row.category,
+                'status': result.status.value if result and result.status else 'registered',
+                'total_time': result.total_time if result else None,
+                'overall_rank': result.overall_rank if result else None,
+                'splits': splits,
+            })
+
+        # Sort by bib number
+        participants_out.sort(key=lambda x: (x['bib_number'] or '').zfill(10))
+
+        return jsonify(participants_out)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/races/<int:race_id>/participants/<int:participant_id>/registration', methods=['PUT'])
+def update_race_registration(race_id, participant_id):
+    """Update a participant's race registration (bib number, category)"""
+    try:
+        data = request.json
+        session = get_session()
+        from sqlalchemy import text
+
+        # Update the race_participants association table
+        updates = []
+        params = {'race_id': race_id, 'participant_id': participant_id}
+
+        if 'bib_number' in data:
+            updates.append('bib_number = :bib_number')
+            params['bib_number'] = data['bib_number']
+        if 'category' in data:
+            updates.append('category = :category')
+            params['category'] = data['category']
+
+        if updates:
+            session.execute(
+                text(f"UPDATE race_participants SET {', '.join(updates)} WHERE race_id = :race_id AND participant_id = :participant_id"),
+                params
+            )
+            session.commit()
+
+        return jsonify({'message': 'Registration updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
 # API - PARTICIPANTS
 # ============================================================================
 
@@ -1214,7 +1362,6 @@ def get_results(race_id):
         'total_time': r.total_time,
         'finish_time': r.finish_time.isoformat() if r.finish_time else None
     } for r in results])
-
 @app.route('/api/races/<int:race_id>/control/start-llrp', methods=['POST'])
 def start_llrp(race_id):
     """Start LLRP timing for a race"""
@@ -1281,6 +1428,29 @@ def record_time(race_id):
     if result:
         return jsonify({'message': 'Time recorded successfully'})
     return jsonify({'error': 'Failed to record time'}), 400
+
+@app.route('/api/races/<int:race_id>/control/time-auto', methods=['POST'])
+def record_time_auto(race_id):
+    """Record a manual time automatically at next timing point"""
+    data = request.json
+    
+    # Get or create race control
+    if race_id not in active_race_controls:
+        active_race_controls[race_id] = RaceControl(race_id)
+    
+    race_control = active_race_controls[race_id]
+    
+    timestamp = datetime.fromisoformat(data['timestamp']) if 'timestamp' in data else None
+    
+    result = race_control.record_manual_time_auto(
+        bib_number=data['bib_number'],
+        timestamp=timestamp,
+        notes=data.get('notes')
+    )
+    
+    if result['success']:
+        return jsonify(result)
+    return jsonify(result), 400
 
 @app.route('/api/races/<int:race_id>/control/dnf', methods=['POST'])
 def mark_dnf(race_id):
@@ -1604,85 +1774,42 @@ RESULTS_PUBLISH_URL = os.getenv('RESULTS_PUBLISH_URL', 'https://race-results-822
 
 @app.route('/api/races/<int:race_id>/publish', methods=['POST'])
 def publish_race_results(race_id):
-    """Manually publish race results to public site"""
-    session = get_session()
+    """Publish race results to the public results site"""
+    from results_publisher import ResultsPublisher
+    
+    manager = RaceManager()
+    race = manager.get_race(race_id)
+    if not race:
+        return jsonify({'error': f'Race {race_id} not found'}), 404
+    
     try:
-        from models import Race, RaceResult, Event
+        publisher = ResultsPublisher()
+        print(publisher.results_site_url)
+        # Test connection first
+        if not publisher.test_connection():
+            return jsonify({
+                'error': 'Cannot connect to results publishing site',
+                'url': publisher.results_site_url
+            }), 503
         
-        # Get race
-        race = session.query(Race).get(race_id)
-        if not race:
-            return jsonify({'error': 'Race not found'}), 404
-        
-        # Get results directly from database
-        results = session.query(RaceResult).filter_by(race_id=race_id).all()
-        
-        # Prepare payload
-        payload = {
-            'race': {
-                'source_race_id': race.id,
-                'event_id': race.event_id,
-                'name': race.name,
-                'race_type': race.race_type.value,
-                'date': race.date.isoformat(),
-                'start_time': race.start_time.isoformat() if race.start_time else None,
-                'finish_time': race.finish_time.isoformat() if race.finish_time else None
-            },
-            'results': [
-                {
-                    'bib_number': r.bib_number,
-                    'participant_name': r.participant.full_name if r.participant else 'Unknown',
-                    'gender': r.participant.gender if r.participant else None,
-                    'age': r.participant.age if r.participant else None,
-                    'category': r.category,
-                    'status': r.status.value if hasattr(r.status, 'value') else str(r.status),
-                    'overall_rank': r.overall_rank,
-                    'category_rank': r.category_rank,
-                    'gender_rank': r.gender_rank,
-                    'finish_time': r.finish_time.isoformat() if r.finish_time else None,
-                    'total_time_seconds': r.total_time,
-                    'split_times': r.split_times
-                }
-                for r in results
-            ],
-            'publish_type': 'manual',
-            'published_by': 'admin'
-        }
-        
-        # Add event data if race is part of an event
-        if race.event_id:
-            event = session.query(Event).get(race.event_id)
-            if event:
-                payload['event'] = {
-                    'source_event_id': event.id,
-                    'name': event.name,
-                    'date': event.date.isoformat(),
-                    'location': event.location,
-                    'description': event.description
-                }
-        
-        # Send to publishing site
-        response = requests.post(
-            f'{RESULTS_PUBLISH_URL}/api/receive-results',
-            json=payload,
-            timeout=10
+        # Publish the results
+        success = publisher.publish_results(
+            race_id,
+            publish_type='manual',
+            published_by=request.json.get('published_by', 'admin') if request.json else 'admin'
         )
         
-        if response.ok:
+        if success:
             return jsonify({
                 'success': True,
-                'message': 'Results published successfully',
-                'result_count': len(results)
+                'message': f'Results published successfully for race: {race.name}'
             })
         else:
-            return jsonify({'error': 'Failed to publish results', 'details': response.text}), 500
-            
-    except requests.exceptions.ConnectionError:
-        return jsonify({'error': 'Could not connect to publishing site. Is it running?'}), 503
+            return jsonify({
+                'success': False,
+                'error': 'Failed to publish results'
+            }), 500
     except Exception as e:
-        print(f"Error publishing results: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -1808,6 +1935,272 @@ def event_qrcode(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+
+# ============================================================================
+# SYSTEM CONFIGURATION
+# ============================================================================
+
+@app.route('/system-config')
+def system_config_page():
+    """System configuration page"""
+    return render_template('system_config.html')
+
+
+@app.route('/api/system-config', methods=['GET'])
+def get_system_config():
+    """Get all system configuration"""
+    try:
+        config_mgr = get_config_manager()
+        configs = config_mgr.get_all()
+        
+        # Convert to simple key-value dict for frontend
+        config_dict = {}
+        for config in configs:
+            # Don't send actual sensitive values, frontend will show masked
+            config_dict[config['key']] = config['value']
+        
+        return jsonify(config_dict)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/system-config', methods=['POST'])
+def update_system_config():
+    """Update system configuration"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        config_mgr = get_config_manager()
+        result = config_mgr.update_multiple(data, updated_by='admin')
+        
+        if result['errors']:
+            return jsonify({
+                'success': False,
+                'message': f"Updated {result['success']} of {result['total']} settings",
+                'errors': result['errors']
+            }), 400
+        
+        return jsonify({
+            'success': True,
+            'message': f"Successfully updated {result['success']} settings"
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/system-config/test-database', methods=['POST'])
+def test_database_connection():
+    """Test database connection with current settings"""
+    try:
+        config_mgr = get_config_manager()
+        
+        # Get database settings
+        db_host = config_mgr.get('db_host', 'localhost')
+        db_port = config_mgr.get_int('db_port', 5432)
+        db_name = config_mgr.get('db_name', 'race_timing')
+        db_user = config_mgr.get('db_user', 'postgres')
+        db_password = config_mgr.get('db_password', '')
+        
+        # Try to connect
+        import psycopg2
+        conn = psycopg2.connect(
+            host=db_host,
+            port=db_port,
+            database=db_name,
+            user=db_user,
+            password=db_password,
+            connect_timeout=5
+        )
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Database connection successful'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+
+@app.route('/api/system-config/test-webhook', methods=['POST'])
+def test_webhook_connection():
+    """Test webhook connection to results site"""
+    try:
+        config_mgr = get_config_manager()
+        
+        # Get webhook settings
+        webhook_url = config_mgr.get('results_publish_url', 'http://localhost:5002')
+        webhook_secret = config_mgr.get('webhook_secret', '')
+        timeout = config_mgr.get_int('webhook_timeout', 10)
+        
+        # Test ping endpoint
+        ping_url = f"{webhook_url}/ping"
+        response = requests.get(ping_url, timeout=timeout)
+        response.raise_for_status()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Webhook connection successful',
+            'response': response.json()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+
+@app.route('/api/system-config/reset/<category>', methods=['POST'])
+def reset_config_category(category):
+    """Reset configuration category to defaults"""
+    try:
+        config_mgr = get_config_manager()
+        count = config_mgr.reset_to_defaults(category)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Reset {count} settings to defaults'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ============================================================================
+# SETUP WIZARD
+# ============================================================================
+
+def check_database_configured():
+    """Check if database is properly configured and accessible"""
+    try:
+        config_mgr = get_config_manager()
+        
+        # Check if we have database configuration
+        db_host = config_mgr.get('db_host')
+        db_name = config_mgr.get('db_name')
+        db_user = config_mgr.get('db_user')
+        
+        if not all([db_host, db_name, db_user]):
+            return False
+        
+        # Try to connect to database
+        import psycopg2
+        db_port = config_mgr.get_int('db_port', 5432)
+        db_password = config_mgr.get('db_password', '')
+        
+        conn = psycopg2.connect(
+            host=db_host,
+            port=db_port,
+            database=db_name,
+            user=db_user,
+            password=db_password,
+            connect_timeout=3
+        )
+        conn.close()
+        return True
+    except:
+        return False
+
+
+@app.before_request
+def check_setup():
+    """Redirect to setup wizard if database is not configured"""
+    # Skip check for setup wizard, static files, and API endpoints
+    if (request.path.startswith('/setup') or
+        request.path.startswith('/static') or
+        request.path.startswith('/api/')):
+        return None
+    
+    # Check if database is configured
+    if not check_database_configured():
+        # Check if this is already the setup page
+        if request.path != '/setup':
+            return redirect('/setup')
+    
+    return None
+
+
+@app.route('/setup')
+def setup_wizard():
+    """Setup wizard page"""
+    return render_template('setup_wizard.html')
+
+
+@app.route('/api/setup/database', methods=['POST'])
+def setup_database():
+    """Save database configuration during setup"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        required = ['db_host', 'db_port', 'db_name', 'db_user', 'db_password']
+        if not all(field in data for field in required):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        config_mgr = get_config_manager()
+        
+        # Save database configuration
+        config_mgr.set('db_host', data['db_host'], 'setup_wizard')
+        config_mgr.set('db_port', data['db_port'], 'setup_wizard')
+        config_mgr.set('db_name', data['db_name'], 'setup_wizard')
+        config_mgr.set('db_user', data['db_user'], 'setup_wizard')
+        config_mgr.set('db_password', data['db_password'], 'setup_wizard')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Database configuration saved'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/setup/webhook', methods=['POST'])
+def setup_webhook():
+    """Save webhook configuration during setup"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        config_mgr = get_config_manager()
+        
+        # Save webhook configuration
+        if 'results_publish_url' in data:
+            config_mgr.set('results_publish_url', data['results_publish_url'], 'setup_wizard')
+        if 'webhook_secret' in data:
+            config_mgr.set('webhook_secret', data['webhook_secret'], 'setup_wizard')
+        if 'webhook_timeout' in data:
+            config_mgr.set('webhook_timeout', data['webhook_timeout'], 'setup_wizard')
+        if 'webhook_retry_attempts' in data:
+            config_mgr.set('webhook_retry_attempts', data['webhook_retry_attempts'], 'setup_wizard')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Webhook configuration saved'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/setup/status', methods=['GET'])
+def setup_status():
+    """Check setup status"""
+    try:
+        db_configured = check_database_configured()
+        
+        return jsonify({
+            'database_configured': db_configured,
+            'setup_required': not db_configured
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+        return jsonify({'error': str(e)}), 500
 
 # ============================================================================
 # MAIN

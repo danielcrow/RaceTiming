@@ -3,64 +3,133 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ race.name }} – Live Results</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-FINISHED { background: #4caf50; color: white; }
+        .status-RUNNING { background: #2196f3; color: white; }
+        .status-DNS { background: #9e9e9e; color: white; }
+        .status-DNF { background: #f44336; color: white; }
+        .status-DQ { background: #ff9800; color: white; }
+        .text-center { text-align: center; }
+        .back-link {
+            display: inline-block;
+            margin: 1rem 0;
+            padding: 0.5rem 1rem;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .back-link:hover {
+            background: hsl(210, 80%, 45%);
+        }
+        @media (max-width: 768px) {
+            .table { font-size: 0.9em; }
+            .table th, .table td { padding: 0.5rem; }
+        }
+    </style>
 </head>
 
 <body class="dark">
     <header class="hero">
-        <h1>{{ race.name }} – Live Results</h1>
-        <p>{{ race.date }} – {{ race.location or 'Online' }}</p>
+        <h1>🏁 {{ race.name }}</h1>
+        <p>{{ race.date[:10] if race.date else 'Date TBD' }} • {{ race.race_type or 'Race' }}</p>
+        {% if race.event_name %}
+        <p style="font-size: 0.9em; opacity: 0.8;">{{ race.event_name }}</p>
+        {% endif %}
     </header>
 
     <main class="container">
+        <a href="/" class="back-link">← Back to All Races</a>
+        
         <table class="table glass">
             <thead>
                 <tr>
+                    <th>Bib</th>
                     <th>Participant</th>
-                    <th>Checkpoint</th>
-                    <th>Time (local)</th>
+                    <th>Category</th>
+                    <th>Overall</th>
+                    <th>Gender</th>
+                    <th>Time</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody id="results-body">
-                <!-- rows injected by JS -->
+                <tr><td colspan="7" class="text-center">Loading results...</td></tr>
             </tbody>
         </table>
     </main>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const raceId = {{ race_id| tojson
-        }};
-        }};
+            const raceId = {{ race_id | tojson }};
+            const resultsTable = document.getElementById('results-body');
+            let lastResultCount = 0;
 
+            function formatTime(seconds) {
+                if (!seconds) return '-';
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
 
-        const resultsTable = document.getElementById('results-body');
+            function renderResults(results) {
+                if (!results || results.length === 0) {
+                    resultsTable.innerHTML = '<tr><td colspan="7" class="text-center">No results available yet</td></tr>';
+                    return;
+                }
+                // Sort by overall rank, then by name
+                results.sort((a, b) => {
+                    if (a.overall_rank && b.overall_rank) return a.overall_rank - b.overall_rank;
+                    if (a.overall_rank) return -1;
+                    if (b.overall_rank) return 1;
+                    return (a.participant_name || '').localeCompare(b.participant_name || '');
+                });
+                resultsTable.innerHTML = results.map(r => `
+                    <tr>
+                        <td><strong>${r.bib_number || 'N/A'}</strong></td>
+                        <td>${r.participant_name || 'Unknown'}</td>
+                        <td>${r.category || 'N/A'}</td>
+                        <td>${r.overall_rank || '-'}</td>
+                        <td>${r.gender_rank || '-'}</td>
+                        <td>${formatTime(r.total_time_seconds)}</td>
+                        <td><span class="status-badge status-${r.status}">${r.status || 'N/A'}</span></td>
+                    </tr>
+                `).join('');
+                lastResultCount = results.length;
+            }
 
-        function addRow(record) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${record.full_name}</td>
-                <td>${record.point_name}</td>
-                <td>${new Date(record.ts).toLocaleTimeString()}</td>
-            `;
-            resultsTable.appendChild(tr);
-        }
+            // Populate initial data from server-rendered template
+            const initial = {{ results | tojson }};
+            renderResults(initial);
 
-        // Populate initial data
-        const initial = {{ results| tojson }};
-        initial.forEach(addRow);
+            // Poll for live updates every 10 seconds
+            async function pollResults() {
+                try {
+                    const resp = await fetch(`/api/results/${raceId}`);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        if (data.length !== lastResultCount) {
+                            renderResults(data);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Poll failed:', e);
+                }
+            }
 
-        // Subscribe to SSE
-        const evtSource = new EventSource(`/results/stream/${raceId}`);
-        evtSource.onmessage = function (e) {
-            const data = JSON.parse(e.data);
-            addRow(data);
-        };
-        evtSource.onerror = function () {
-            console.error('SSE connection lost – fallback to polling...');
-        };
-    });
+            setInterval(pollResults, 10000);
+        });
     </script>
 </body>
 

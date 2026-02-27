@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Configuration - Race Timing</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .config-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .config-header {
+            margin-bottom: 2rem;
+        }
+
+        .config-header h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        .config-header p {
+            color: #666;
+        }
+
+        .config-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .config-tab {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .config-tab:hover {
+            color: #333;
+        }
+
+        .config-tab.active {
+            color: var(--accent, #4285f4);
+            border-bottom-color: var(--accent, #4285f4);
+        }
+
+        .config-section {
+            display: none;
+        }
+
+        .config-section.active {
+            display: block;
+        }
+
+        .config-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group .help-text {
+            display: block;
+            margin-top: 0.25rem;
+            font-size: 0.875rem;
+            color: #666;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group input[type="number"],
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent, #4285f4);
+            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+        }
+
+        .form-group input[type="password"] {
+            font-family: monospace;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--accent, #4285f4);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3367d6;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .sensitive-field {
+            position: relative;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 38px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .config-tabs {
+                flex-wrap: wrap;
+            }
+
+            .config-tab {
+                padding: 0.75rem 1rem;
+            }
+
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="/" class="navbar-brand">🏁 Race Timing</a>
+                <ul class="navbar-nav">
+                    <li><a href="/" class="nav-link">Dashboard</a></li>
+                    <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/races" class="nav-link">Races</a></li>
+                    <li><a href="/participants" class="nav-link">Participants</a></li>
+                    <li><a href="/llrp-stations" class="nav-link">LLRP Stations</a></li>
+                    <li><a href="/system-config" class="nav-link active">⚙️ Config</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="config-container">
+            <div class="config-header">
+                <h1>⚙️ System Configuration</h1>
+                <p>Manage system settings, database connections, webhooks, and LLRP stations</p>
+            </div>
+
+            <div id="alert-container"></div>
+
+            <div class="config-tabs">
+                <button class="config-tab active" data-tab="database">🗄️ Database</button>
+                <button class="config-tab" data-tab="webhook">🔗 Webhooks</button>
+                <button class="config-tab" data-tab="llrp">📡 LLRP</button>
+                <button class="config-tab" data-tab="general">⚙️ General</button>
+            </div>
+
+            <!-- Database Configuration -->
+            <div class="config-section active" id="database-section">
+                <form class="config-form" id="database-form">
+                    <h2>Database Configuration</h2>
+                    <p class="help-text">Configure PostgreSQL database connection settings</p>
+
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label for="db_host">Database Host</label>
+                            <input type="text" id="db_host" name="db_host" placeholder="localhost">
+                            <span class="help-text">PostgreSQL server hostname or IP address</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="db_port">Database Port</label>
+                            <input type="number" id="db_port" name="db_port" placeholder="5432">
+                            <span class="help-text">PostgreSQL server port (default: 5432)</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="db_name">Database Name</label>
+                            <input type="text" id="db_name" name="db_name" placeholder="race_timing">
+                            <span class="help-text">Name of the database</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="db_user">Database User</label>
+                            <input type="text" id="db_user" name="db_user" placeholder="postgres">
+                            <span class="help-text">Database username</span>
+                        </div>
+
+                        <div class="form-group sensitive-field">
+                            <label for="db_password">Database Password</label>
+                            <input type="password" id="db_password" name="db_password" placeholder="••••••••">
+                            <span class="toggle-password" onclick="togglePassword('db_password')">👁️</span>
+                            <span class="help-text">Database password (stored securely)</span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">💾 Save Database Settings</button>
+                        <button type="button" class="btn btn-secondary" onclick="testDatabaseConnection()">🔍 Test Connection</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetSection('database')">↺ Reset to Defaults</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Webhook Configuration -->
+            <div class="config-section" id="webhook-section">
+                <form class="config-form" id="webhook-form">
+                    <h2>Webhook Configuration</h2>
+                    <p class="help-text">Configure results publishing to the public results site</p>
+
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label for="results_publish_url">Results Site URL</label>
+                            <input type="text" id="results_publish_url" name="results_publish_url" 
+                                   placeholder="http://localhost:5002">
+                            <span class="help-text">URL of the public results website</span>
+                        </div>
+
+                        <div class="form-group sensitive-field">
+                            <label for="webhook_secret">Webhook Secret</label>
+                            <input type="password" id="webhook_secret" name="webhook_secret" 
+                                   placeholder="••••••••">
+                            <span class="toggle-password" onclick="togglePassword('webhook_secret')">👁️</span>
+                            <span class="help-text">Authentication secret for webhook requests</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="webhook_timeout">Request Timeout (seconds)</label>
+                            <input type="number" id="webhook_timeout" name="webhook_timeout" 
+                                   placeholder="10" min="1" max="60">
+                            <span class="help-text">Timeout for webhook HTTP requests</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="webhook_retry_attempts">Retry Attempts</label>
+                            <input type="number" id="webhook_retry_attempts" name="webhook_retry_attempts" 
+                                   placeholder="3" min="0" max="10">
+                            <span class="help-text">Number of retry attempts for failed webhooks</span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">💾 Save Webhook Settings</button>
+                        <button type="button" class="btn btn-secondary" onclick="testWebhook()">🔍 Test Webhook</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetSection('webhook')">↺ Reset to Defaults</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- LLRP Configuration -->
+            <div class="config-section" id="llrp-section">
+                <form class="config-form" id="llrp-form">
+                    <h2>LLRP Configuration</h2>
+                    <p class="help-text">Configure default settings for LLRP RFID readers</p>
+
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label for="llrp_default_port">Default LLRP Port</label>
+                            <input type="number" id="llrp_default_port" name="llrp_default_port" 
+                                   placeholder="5084" min="1" max="65535">
+                            <span class="help-text">Default port for LLRP reader connections</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="llrp_cooldown_seconds">Tag Read Cooldown (seconds)</label>
+                            <input type="number" id="llrp_cooldown_seconds" name="llrp_cooldown_seconds" 
+                                   placeholder="5" min="1" max="60">
+                            <span class="help-text">Minimum time between reads of the same tag</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="llrp_connection_timeout">Connection Timeout (seconds)</label>
+                            <input type="number" id="llrp_connection_timeout" name="llrp_connection_timeout" 
+                                   placeholder="30" min="5" max="120">
+                            <span class="help-text">Timeout for LLRP reader connections</span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">💾 Save LLRP Settings</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetSection('llrp')">↺ Reset to Defaults</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- General Configuration -->
+            <div class="config-section" id="general-section">
+                <form class="config-form" id="general-form">
+                    <h2>General Configuration</h2>
+                    <p class="help-text">General application settings</p>
+
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label for="app_name">Application Name</label>
+                            <input type="text" id="app_name" name="app_name" placeholder="Race Timing System">
+                            <span class="help-text">Display name for the application</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="app_timezone">Timezone</label>
+                            <input type="text" id="app_timezone" name="app_timezone" placeholder="UTC">
+                            <span class="help-text">Application timezone (e.g., UTC, America/New_York)</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="enable_auto_publish">Auto-Publish Results</label>
+                            <select id="enable_auto_publish" name="enable_auto_publish">
+                                <option value="false">Disabled</option>
+                                <option value="true">Enabled</option>
+                            </select>
+                            <span class="help-text">Automatically publish results after race completion</span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">💾 Save General Settings</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetSection('general')">↺ Reset to Defaults</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.config-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                
+                // Update active tab
+                document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Update active section
+                document.querySelectorAll('.config-section').forEach(s => s.classList.remove('active'));
+                document.getElementById(`${tabName}-section`).classList.add('active');
+            });
+        });
+
+        // Load configuration on page load
+        window.addEventListener('DOMContentLoaded', loadConfiguration);
+
+        async function loadConfiguration() {
+            try {
+                const response = await fetch('/api/system-config');
+                const data = await response.json();
+                
+                // Populate form fields
+                Object.entries(data).forEach(([key, value]) => {
+                    const input = document.getElementById(key);
+                    if (input) {
+                        input.value = value;
+                    }
+                });
+            } catch (error) {
+                showAlert('Error loading configuration: ' + error.message, 'error');
+            }
+        }
+
+        // Form submission handlers
+        ['database', 'webhook', 'llrp', 'general'].forEach(section => {
+            document.getElementById(`${section}-form`).addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await saveConfiguration(section, e.target);
+            });
+        });
+
+        async function saveConfiguration(section, form) {
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/api/system-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert(`${section.charAt(0).toUpperCase() + section.slice(1)} settings saved successfully!`, 'success');
+                } else {
+                    showAlert('Error saving settings: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showAlert('Error saving settings: ' + error.message, 'error');
+            }
+        }
+
+        async function testDatabaseConnection() {
+            showAlert('Testing database connection...', 'info');
+            
+            try {
+                const response = await fetch('/api/system-config/test-database', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showAlert('✅ Database connection successful!', 'success');
+                } else {
+                    showAlert('❌ Database connection failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Database connection failed: ' + error.message, 'error');
+            }
+        }
+
+        async function testWebhook() {
+            showAlert('Testing webhook connection...', 'info');
+            
+            try {
+                const response = await fetch('/api/system-config/test-webhook', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showAlert('✅ Webhook connection successful!', 'success');
+                } else {
+                    showAlert('❌ Webhook connection failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Webhook connection failed: ' + error.message, 'error');
+            }
+        }
+
+        async function resetSection(section) {
+            if (!confirm(`Are you sure you want to reset ${section} settings to defaults?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/system-config/reset/${section}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert(`${section.charAt(0).toUpperCase() + section.slice(1)} settings reset to defaults`, 'success');
+                    await loadConfiguration();
+                } else {
+                    showAlert('Error resetting settings: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showAlert('Error resetting settings: ' + error.message, 'error');
+            }
+        }
+
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            field.type = field.type === 'password' ? 'text' : 'password';
+        }
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            container.innerHTML = '';
+            container.appendChild(alert);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+
+</html>

@@ -7,13 +7,19 @@ __pycache__/
 venv/
 env/
 ENV/
+build/
+dist/
+*.egg-info/
 
 # Database
 *.db
 *.db-journal
+*.sqlite
+*.sqlite3
 
 # Environment variables
 .env
+.env.local
 
 # IDE
 .vscode/
@@ -28,3 +34,11 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Vercel
+.vercel
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
