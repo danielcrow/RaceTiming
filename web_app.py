@@ -223,34 +223,40 @@ def create_event():
 @app.route('/api/events/<int:event_id>', methods=['GET'])
 def get_event(event_id):
     """Get event details"""
-    manager = EventManager()
-    event = manager.get_event(event_id)
-    
-    if not event:
-        return jsonify({'error': 'Event not found'}), 404
-    
-    return jsonify({
-        'id': event.id,
-        'name': event.name,
-        'date': event.date.isoformat(),
-        'location': event.location,
-        'description': event.description,
-        'races': [{
-            'id': r.id,
-            'name': r.name,
-            'race_type': r.race_type.value,
-            'date': r.date.isoformat(),
-            'participant_count': len(r.participants)
-        } for r in event.races]
-    })
+    try:
+        manager = EventManager()
+        event = manager.get_event(event_id)
+
+        if not event:
+            return jsonify({'error': 'Event not found'}), 404
+
+        return jsonify({
+            'id': event.id,
+            'name': event.name,
+            'date': event.date.isoformat() if event.date else None,
+            'location': event.location,
+            'description': event.description,
+            'races': [{
+                'id': r.id,
+                'name': r.name,
+                'race_type': r.race_type.value if r.race_type else None,
+                'date': r.date.isoformat() if r.date else None,
+                'participant_count': len(r.participants)
+            } for r in event.races]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/events/<int:event_id>', methods=['DELETE'])
 def delete_event(event_id):
     """Delete an event"""
-    manager = EventManager()
-    if manager.delete_event(event_id):
-        return jsonify({'message': 'Event deleted successfully'})
-    return jsonify({'error': 'Event not found'}), 404
+    try:
+        manager = EventManager()
+        if manager.delete_event(event_id):
+            return jsonify({'message': 'Event deleted successfully'})
+        return jsonify({'error': 'Event not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ============================================================================
